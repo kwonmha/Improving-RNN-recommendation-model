@@ -1,0 +1,2 @@
+model_checkpoint_path: "rnn_cce_ml30_bs16_ne46.627_gc100_h50_Ug_lr0.11_nt1"
+all_model_checkpoint_paths: "rnn_cce_ml30_bs16_ne46.627_gc100_h50_Ug_lr0.11_nt1"
