@@ -252,7 +252,6 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 	def _load(self, filename):
 		'''Load parameters values from a file
 		'''
-		exit()
 		saver = tf.train.import_meta_graph(filename)
 		saver.restore(self.sess, tf.train.latest_checkpoint(os.path.dirname(filename)))
 		self.sess.run(self.init)

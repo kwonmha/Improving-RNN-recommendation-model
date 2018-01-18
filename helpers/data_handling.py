@@ -37,7 +37,6 @@ class DataHandler(object):
 		super(DataHandler, self).__init__()
 
 		self.dirname = self._get_path(dirname)
-		print(self.dirname)
 
 		self.extended_training_set = extended_training_set
 		if extended_training_set:

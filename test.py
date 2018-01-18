@@ -33,11 +33,9 @@ def save_file_name(predictor, dataset, args):
 
 
 def run_tests(predictor, model_file, dataset, args, get_full_recommendation_list=False, k=10):
-	# Load model
 
 	predictor._load(model_file)
 	#predictor.load_last(os.path.dirname(model_file) + '/')
-	# exit()
 
 	# Prepare evaluator
 	evaluator = evaluation.Evaluator(dataset, k=k)
@@ -64,17 +62,12 @@ def run_tests(predictor, model_file, dataset, args, get_full_recommendation_list
 		else:
 			#seq_lengths = sorted(random.sample(xrange(1, len(sequence)),len(sequence) - 1))
 			seq_lengths = list(range(1, len(sequence)))
-			# print(seq_lengths)
-			# print(len(sequence))
-			# exit()
+
 			for length in seq_lengths:
 				viewed = sequence[:length]
 				goal = sequence[length:][0]
-				# print(viewed)
-				# print("--------------")
-				# print(goal)
-				# print("==============")
-				recommendations = predictor.top_k_recommendations(viewed, sess, k=k)
+
+				recommendations = predictor.top_k_recommendations(viewed, k=k)
 				evaluator.add_instance(goal, recommendations)
 
 	end = time.clock()
@@ -168,11 +161,6 @@ def main():
 			print('(',i+1 ,'/', len(file),') results on ' + f)
 			print_results(evaluator, args.metrics.split(','), file=output_file, n_batches=batches[i],
 						  print_full_rank_comparison=args.save_rank)
-	# else:
-	# 	evaluator = run_tests(predictor, file, dataset, args, get_full_recommendation_list=args.save_rank,
-	# 						  k=args.nb_of_predictions)
-	# 	print_results(evaluator, args.metrics.split(','), file=save_file_name(predictor, dataset, args),
-	# 				  print_full_rank_comparison=args.save_rank)
 
 if __name__ == '__main__':
 	main()
