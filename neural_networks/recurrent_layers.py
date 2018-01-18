@@ -48,11 +48,6 @@ class RecurrentLayers(object):
 
 	def __call__(self, input, seq_len=None, activate_f=None):
 
-		if self.embedding_size > 0:
-			in_int32 = lasagne.layers.ExpressionLayer(input, lambda x: x.astype('int32'))  # change type of input
-			l_emb = lasagne.layers.flatten(
-				lasagne.layers.EmbeddingLayer(in_int32, output_size=self.embedding_size), outdim=3)
-
 		if self.layer_type == "LSTM":
 			rnn_cell = tf.nn.rnn_cell.LSTMCell
 			cells = [rnn_cell(h, activation=activate_f, state_is_tuple=True) for _, h in enumerate(self.layers)]

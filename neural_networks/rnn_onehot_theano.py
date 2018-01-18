@@ -35,10 +35,10 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 	def _get_model_filename(self, epochs):
 		"""Return the name of the file to save the current model
 		"""
-		filename = "rnn_cce_db" + str(self.diversity_bias) + "_r" + str(self.regularization) + "_" + self._common_filename(epochs) + self.framework
+		filename = "rnn_cce_db" + "_" + self._common_filename(epochs) + "." + self.framework
 		return filename
 
-	def _prepare_networks(self, n_items):
+	def prepare_networks(self, n_items):
 		"""Prepares the building blocks of the RNN, but does not compile them:
 		self.l_in : input layer
 		self.l_mask : mask of the input layer

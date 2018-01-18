@@ -38,19 +38,25 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		"""Return the name of the file to save the current model
 		"""
 		#filename = "rnn_cce_db"+str(self.diversity_bias)+"_r"+str(self.regularization)+"_"+self._common_filename(epochs)
-		filename = "rnn_cce_" + self._common_filename(epochs) + self.framework
+		filename = "rnn_cce_" + self._common_filename(epochs) + "." + self.framework
 		return filename
 
-	def _prepare_networks(self, n_items):
+	def prepare_networks(self, n_items):
 
 		activation = self.get_activation(self.active_f)
 
 		self.n_items = n_items
-		self.X = tf.placeholder(tf.float32, [None, self.max_length, self.n_items])
+		if self.recurrent_layer.embedding_size > 0:
+			self.X = tf.placeholder(tf.int32, [None, self.max_length])
+			word_embeddings = tf.get_variable("word_embeddings", [self.n_items, self.recurrent_layer.embedding_size])
+			rnn_input = tf.nn.embedding_lookup(word_embeddings, self.X)
+		else:
+			self.X = tf.placeholder(tf.float32, [None, self.max_length, self.n_items])
+			rnn_input = self.X
 		self.Y = tf.placeholder(tf.float32, [None, self.n_items])
 
-		self.length = self.get_length(self.X)
-		self.rnn_out, _state = self.recurrent_layer(self.X, self.length, activate_f=activation)
+		self.length = self.get_length(rnn_input)
+		self.rnn_out, _state = self.recurrent_layer(rnn_input, self.length, activate_f=activation)
 
 		# batch_range = tf.range(tf.shape(self.rnn_out)[0]) # [0, 1, ... b(15)]
 		# self.indices = tf.stack([batch_range, self.l2], axis=1) #[[0, l2[0]], [1, [l2[1] ...]
@@ -176,14 +182,20 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		batch_size = len(sequences)
 
 		# Shape of return variables
-		X = np.zeros((batch_size, self.max_length, self.n_items), dtype=self._input_type) # input of the RNN
-		Y = np.zeros((batch_size, self.n_items), dtype='float32') # output target
+		if self.recurrent_layer.embedding_size > 0:
+			X = np.zeros((batch_size, self.max_length), dtype=np.int32)  # keras embedding requires movie-id sequence, not one-hot
+		else:
+			X = np.zeros((batch_size, self.max_length, self.n_items), dtype=self._input_type)  # input of the RNN
+		Y = np.zeros((batch_size, self.n_items), dtype=np.float32)  # output target
 
 		for i, sequence in enumerate(sequences):
 			user_id, in_seq, target = sequence
 
-			seq_features = np.array(list(map(lambda x: self._get_features(x), in_seq)))
-			X[i, :len(in_seq), :] = seq_features # Copy sequences into X
+			if self.recurrent_layer.embedding_size > 0:
+				X[i, :len(in_seq)] = np.array([item[0] for item in in_seq])
+			else:
+				seq_features = np.array(list(map(lambda x: self._get_features(x), in_seq)))
+				X[i, :len(in_seq), :] = seq_features  # Copy sequences into X
 
 			Y[i][target[0][0]] = 1.
 

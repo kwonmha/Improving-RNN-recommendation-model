@@ -5,7 +5,7 @@ import numpy as np
 from importlib import reload
 from keras import backend as be
 from keras.models import Sequential, load_model
-from keras.layers import RNN, GRU, LSTM, Dense, Activation, Bidirectional, Masking
+from keras.layers import RNN, GRU, LSTM, Dense, Activation, Bidirectional, Masking, Embedding
 from .rnn_base import RNNBase
 from os import environ
 from helpers import evaluation
@@ -21,7 +21,7 @@ This will reduce the error associated to movies with a lot of views, putting the
 A diversity_bias of 0 produces the normal behavior, with no bias.
 	"""
 
-	def __init__(self, updater=None, recurrent_layer=None, backend='tensorflow', diversity_bias=0.0, regularization=0.0, **kwargs):
+	def __init__(self, updater=None, recurrent_layer=None, backend='tensorflow', mem_frac=None, diversity_bias=0.0, regularization=0.0, **kwargs):
 		super(RNNOneHotK, self).__init__(**kwargs)
 
 		# self.diversity_bias = np.cast[theano.config.floatX](diversity_bias)
@@ -30,6 +30,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		self.backend = backend
 		self.updater = updater
 		self.recurrent_layer = recurrent_layer
+		self.tf_mem_frac = mem_frac
 
 		self.name = "RNN with categorical cross entropy"
 
@@ -50,10 +51,10 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		"""Return the name of the file to save the current model
 		"""
 		# filename = "rnn_cce_db"+str(self.diversity_bias)+"_r"+str(self.regularization)+"_"+self._common_filename(epochs)
-		filename = "rnn_cce_" + self._common_filename(epochs) + self.framework
+		filename = "rnn_cce_" + self._common_filename(epochs) + "." + self.framework
 		return filename
 
-	def _prepare_networks(self, n_items):
+	def prepare_networks(self, n_items):
 
 		self.n_items = n_items
 
@@ -61,11 +62,15 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 			import tensorflow as tf
 			from keras.backend.tensorflow_backend import set_session
 			config = tf.ConfigProto()
-			config.gpu_options.per_process_gpu_memory_fraction = 0.3
+			config.gpu_options.per_process_gpu_memory_fraction = self.tf_mem_frac
 			set_session(tf.Session(config=config))
 
 		self.model = Sequential()
-		self.model.add(Masking(mask_value=0.0, input_shape=(self.max_length, self.n_items)))
+		if self.recurrent_layer.embedding_size > 0:
+			self.model.add(Embedding(self.n_items, self.recurrent_layer.embedding_size, input_length=self.max_length))
+			self.model.add(Masking(mask_value=0.0))
+		else:
+			self.model.add(Masking(mask_value=0.0, input_shape=(self.max_length, self.n_items)))
 
 		rnn = self.get_rnn_type(self.recurrent_layer.layer_type, self.recurrent_layer.bidirectional)
 
@@ -103,14 +108,20 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		batch_size = len(sequences)
 
 		# Shape of return variables
-		X = np.zeros((batch_size, self.max_length, self.n_items), dtype=self._input_type)  # input of the RNN
+		if self.recurrent_layer.embedding_size > 0:
+			X = np.zeros((batch_size, self.max_length), dtype=self._input_type)  # keras embedding requires movie-id sequence, not one-hot
+		else:
+			X = np.zeros((batch_size, self.max_length, self.n_items), dtype=self._input_type)  # input of the RNN
 		Y = np.zeros((batch_size, self.n_items), dtype='float32')  # output target
 
 		for i, sequence in enumerate(sequences):
 			user_id, in_seq, target = sequence
 
-			seq_features = np.array(list(map(lambda x: self._get_features(x), in_seq)))
-			X[i, :len(in_seq), :] = seq_features  # Copy sequences into X
+			if self.recurrent_layer.embedding_size > 0:
+				X[i,:len(in_seq)] =  np.array([item[0] for item in in_seq])
+			else:
+				seq_features = np.array(list(map(lambda x: self._get_features(x), in_seq)))
+				X[i, :len(in_seq), :] = seq_features  # Copy sequences into X
 
 			Y[i][target[0][0]] = 1.
 

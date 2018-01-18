@@ -152,7 +152,7 @@ def main():
 
 	dataset = DataHandler(dirname=args.dataset, period=args.period)
 	predictor = parse.get_predictor(args)
-	predictor.prepare_model(dataset)
+	predictor.prepare_networks(dataset.n_items)
 	file = find_models(predictor, dataset, args)
 
 	if args.number_of_batches == "*" and args.method != "UKNN" and args.method != "MM" and args.method != "POP":

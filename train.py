@@ -45,7 +45,7 @@ def main():
 		args.min_iter = 800000
 		args.progress = 200000
 
-	predictor.prepare_model(dataset)
+	predictor.prepare_networks(dataset.n_items)
 	predictor.train(dataset,
 		save_dir=dataset.dirname + "models/" + args.dir, 
 		time_based_progress=args.time_based_progress, 

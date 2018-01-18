@@ -56,11 +56,6 @@ class RNNBase(object):
 						}
 
 
-	def prepare_model(self, dataset):
-		'''Must be called before using train, load or top_k_recommendations
-		'''
-		self._prepare_networks(dataset.n_items)
-
 	def _common_filename(self, epochs):
 		'''Common parts of the filename accros sub classes.
 		'''
@@ -95,6 +90,8 @@ class RNNBase(object):
 		if self.framework == 'tf':
 			output = sess.run(self.softmax, feed_dict={self.X: X})
 		elif self.framework == 'th':
+			if not hasattr(self, 'predict_function'):
+				self._compile_predict_function()
 			output = self.predict_function(X)
 		else:
 			output = self.model.predict_on_batch(X)
@@ -183,9 +180,9 @@ class RNNBase(object):
 		metrics = {name: [] for name in self.metrics.keys()}
 		filename = {}
 
-		if self.framework=='tensorflow':
+		if self.framework=='tf':
 			self.sess.run(self.init)
-		elif self.framework == 'theano':
+		elif self.framework == 'th':
 			if not hasattr(self, 'train_function'):
 				self._compile_train_function()
 			if not hasattr(self, 'test_function'):
@@ -199,7 +196,7 @@ class RNNBase(object):
 					batch = next(batch_generator)
 					# np.set_printoptions(threshold=np.inf)
 
-					if self.framework == 'tensorflow':
+					if self.framework == 'tf':
 						if self.save_log:
 							s, cost, _ = self.sess.run(self.run, feed_dict={self.X: batch[0], self.Y: batch[1]})
 							self.writer.add_summary(s, iterations)
@@ -211,7 +208,7 @@ class RNNBase(object):
 						# print(last_rnn[0, :6])
 						# print(cost)
 
-					elif self.framework.startswith('keras'):
+					elif self.framework.startswith('k'):
 						# self.model.fit(batch[0], batch[2])
 						cost = self.model.train_on_batch(batch[0], batch[1])
 						# outputs = self.model.predict_on_batch(batch[0])
@@ -381,7 +378,7 @@ class RNNBase(object):
 		'''
 		raise NotImplemented
 
-	def _prepare_networks(self):
+	def prepare_networks(self):
 		''' Prepares the building blocks of the RNN, but does not compile them:
 		self.l_in : input layer
 		self.l_mask : mask of the input layer
