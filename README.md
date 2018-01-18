@@ -1,7 +1,7 @@
 # Improving RNN based recommendtation
 Tensorflow, Keras implementation of "[Collaborative filtering based on sequences](https://github.com/rdevooght/sequence-based-recommendations)". Also, theano is available in this project. All methods other than RNN-Categorical cross entropy are removed to focus on improving the performance of RNN and for simplification. (It's not updated but) I applied "[weight tying technique](https://pdfs.semanticscholar.org/fb26/4cfa7309c572dc1aa6e70e745367f97ef78e.pdf)" into the RNN-CCE model and it resulted it higher recall in MovieLens 1M dataset.
 
-For reproducibility, you can download the same preprocessed data sequence from (http://iridia.ulb.ac.be/~rdevooght/rnn_cf_data.zip). 
+For reproducibility, you can download the same preprocessed data sequence from http://iridia.ulb.ac.be/~rdevooght/rnn_cf_data.zip. 
 
 ## Installation
 This code is based on python3, and run on windows 10, 64bit. You can use any deeplearning framework among tensorflow(1.4.0), keras(2.1.2) and theano(0.8.2 with lasagne(0.2.dev1)). I installed with pip. 
