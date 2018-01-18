@@ -37,6 +37,7 @@ class DataHandler(object):
 		super(DataHandler, self).__init__()
 
 		self.dirname = self._get_path(dirname)
+		print(self.dirname)
 
 		self.extended_training_set = extended_training_set
 		if extended_training_set:
@@ -99,10 +100,11 @@ class DataHandler(object):
 		elif dirname == 'rsc':
 			dirname = "C:/Users\Kwon/workspace/Python/RNN-Rec/data/RSC15/"
 
-		print(dirname)
 		if os.path.exists(dirname) and not os.path.exists(DEFAULT_DIR+dirname+'/'):
 			return dirname
 		if not os.path.exists(dirname) and os.path.exists(DEFAULT_DIR+dirname+'/'):
+			if dirname == '':
+				return DEFAULT_DIR
 			return DEFAULT_DIR+dirname+'/'
 		if os.path.exists(dirname) and os.path.exists(DEFAULT_DIR+dirname+'/'):
 			print('WARNING: ambiguous directory name, both "'+dirname+'" and "'+DEFAULT_DIR+dirname+'" exist. "'+dirname+'" is used.')

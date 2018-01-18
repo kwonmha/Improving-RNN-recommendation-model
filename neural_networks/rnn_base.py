@@ -76,7 +76,7 @@ class RNNBase(object):
 			filename += "_att"
 		return filename
 
-	def top_k_recommendations(self, sequence, sess, k=10):
+	def top_k_recommendations(self, sequence, k=10):
 		''' Recieves a sequence of (id, rating), and produces k recommendations (as a list of ids)
 		'''
 
@@ -88,16 +88,18 @@ class RNNBase(object):
 
 		# Run RNN
 		if self.framework == 'tf':
-			output = sess.run(self.softmax, feed_dict={self.X: X})
+			output = self.sess.run(self.softmax, feed_dict={self.X: X})
 		elif self.framework == 'th':
 			if not hasattr(self, 'predict_function'):
 				self._compile_predict_function()
-			output = self.predict_function(X)
+			mask = np.zeros((1, self.max_length))
+			mask[0, :len(seq_by_max_length)] = 1
+			output = self.predict_function(X, mask)
 		else:
 			output = self.model.predict_on_batch(X)
 
 		# find top k according to output
-		return list(np.argpartition(-output, list(range(k)))[:k])
+		return list(np.argpartition(-output[0], list(range(k)))[:k])
 
 	def set_dataset(self, dataset):
 		self.dataset = dataset
@@ -260,12 +262,12 @@ class RNNBase(object):
 						# Save model
 						run_nb = len(metrics[list(self.metrics.keys())[0]]) - 1
 						if autosave == 'All':
-							filename[run_nb] = save_dir + self._get_model_filename(round(epochs[-1], 3))
+							filename[run_nb] = save_dir + self.framework + "/" + self._get_model_filename(round(epochs[-1], 3))
 							self._save(filename[run_nb])
 						elif autosave == 'Best':
 							pareto_runs = self.get_pareto_front(metrics, validation_metrics)
 							if run_nb in pareto_runs:
-								filename[run_nb] = save_dir + self._get_model_filename(round(epochs[-1], 3))
+								filename[run_nb] = save_dir + self.framework + "/" + self._get_model_filename(round(epochs[-1], 3))
 								self._save(filename[run_nb])
 								to_delete = [r for r in filename if r not in pareto_runs]
 								for run in to_delete:
@@ -436,7 +438,7 @@ class RNNBase(object):
 
 		return last_batch
 
-	# use tensorflow saver instead
+
 	def _load(self, filename):
 		'''Load parameters values from a file
 		'''

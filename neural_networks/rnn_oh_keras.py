@@ -171,7 +171,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 
 	def _save(self, filename):
 		super(RNNOneHotK, self)._save(filename)
-		self.model.save_weights(filename)
+		self.model.save(filename)
 
 	def _load(self, filename):
 		'''Load parameters values from a file

@@ -14,17 +14,14 @@ from helpers.data_handling import DataHandler
 
 
 def get_file_name(predictor, args):
-	return args.dir + re.sub('_ml'+str(args.max_length), '_ml'+str(args.training_max_length), predictor._get_model_filename(args.number_of_batches))
+	return args.dir + predictor.framework + "/" + re.sub('_ml'+str(args.max_length), '_ml'+str(args.training_max_length), predictor._get_model_filename(args.number_of_batches))
 
 def find_models(predictor, dataset, args):
-	if args.method == "UKNN" or args.method == "MM" or args.method == "POP":
-		return None
-
 	file = dataset.dirname + "models/" + get_file_name(predictor, args)
-	# print(file)
+	if args.framework == 'tf':
+		file += ".meta"
 	if args.number_of_batches == "*":
 		file = np.array(glob.glob(file))
-
 	return file
 
 def save_file_name(predictor, dataset, args):
@@ -35,7 +32,7 @@ def save_file_name(predictor, dataset, args):
 		return file
 
 
-def run_tests(predictor, sess, model_file, dataset, args, get_full_recommendation_list=False, k=10):
+def run_tests(predictor, model_file, dataset, args, get_full_recommendation_list=False, k=10):
 	# Load model
 
 	predictor._load(model_file)
@@ -56,7 +53,7 @@ def run_tests(predictor, sess, model_file, dataset, args, get_full_recommendatio
 			viewed = sequence[:num_viewed]
 			goal = [i[0] for i in sequence[num_viewed:]] #list of movie ids
 
-			recommendations = predictor.top_k_recommendations(viewed, sess, k=k)
+			recommendations = predictor.top_k_recommendations(viewed, k=k)
 
 			#recommendations(movie ids) 잘 추가되게 하면 됨
 			#print(recommendations)
@@ -150,34 +147,32 @@ def main():
 	if args.number_of_batches == -1:
 		args.number_of_batches = "*"
 
-	dataset = DataHandler(dirname=args.dataset, period=args.period)
+	dataset = DataHandler(dirname=args.dataset)
 	predictor = parse.get_predictor(args)
 	predictor.prepare_networks(dataset.n_items)
 	file = find_models(predictor, dataset, args)
 
-	if args.number_of_batches == "*" and args.method != "UKNN" and args.method != "MM" and args.method != "POP":
-		
-		output_file = save_file_name(predictor, dataset, args)
+	output_file = save_file_name(predictor, dataset, args)
 
-		last_tested_batch = get_last_tested_batch(output_file)
-		batches = np.array(map(extract_number_of_epochs, file))
-		sorted_ids = np.argsort(batches)
-		batches = batches[sorted_ids]
-		file = file[sorted_ids]
-		print(file)
+	last_tested_batch = get_last_tested_batch(output_file)
+	batches = np.array(list(map(extract_number_of_epochs, file)))
+	sorted_ids = np.argsort(batches)
+	batches = batches[sorted_ids]
+	file = file[sorted_ids]
+	print(file)
 
-		for i, f in enumerate(file):
-			if batches[i] > last_tested_batch:
-				evaluator = run_tests(predictor, f, dataset, args,  get_full_recommendation_list=args.save_rank, k=args.nb_of_predictions)
-				print('-------------------')
-				print('(',i+1 ,'/', len(file),') results on ' + f)
-				print_results(evaluator, args.metrics.split(','), file=output_file, n_batches=batches[i],
-							  print_full_rank_comparison=args.save_rank)
-	else:
-		evaluator = run_tests(predictor, file, dataset, args, get_full_recommendation_list=args.save_rank,
-							  k=args.nb_of_predictions)
-		print_results(evaluator, args.metrics.split(','), file=save_file_name(predictor, dataset, args),
-					  print_full_rank_comparison=args.save_rank)
+	for i, f in enumerate(file):
+		if batches[i] > last_tested_batch:
+			evaluator = run_tests(predictor, f, dataset, args,  get_full_recommendation_list=args.save_rank, k=args.nb_of_predictions)
+			print('-------------------')
+			print('(',i+1 ,'/', len(file),') results on ' + f)
+			print_results(evaluator, args.metrics.split(','), file=output_file, n_batches=batches[i],
+						  print_full_rank_comparison=args.save_rank)
+	# else:
+	# 	evaluator = run_tests(predictor, file, dataset, args, get_full_recommendation_list=args.save_rank,
+	# 						  k=args.nb_of_predictions)
+	# 	print_results(evaluator, args.metrics.split(','), file=save_file_name(predictor, dataset, args),
+	# 				  print_full_rank_comparison=args.save_rank)
 
 if __name__ == '__main__':
 	main()

@@ -3,15 +3,23 @@ Tensorflow, Keras implementation of "[Collaborative filtering based on sequences
 
 For reproducibility, you can download the same preprocessed data sequence from http://iridia.ulb.ac.be/~rdevooght/rnn_cf_data.zip. 
 
-## Installation
-This code is based on python3, and run on windows 10, 64bit. You can use any deeplearning framework among tensorflow(1.4.0), keras(2.1.2) and theano(0.8.2 with lasagne(0.2.dev1)). I installed with pip. 
+## Requirements
 
-For example, 
+- Python 3
+- Tensorflow >= 1.4.0 or keras >=2.1.2 or theano 0.8.2 with lasagne 0.2.dev1
+- Numpy
+- _pickle
+_ h5py for saving keras model
+
+## Installation
+This project runs on windows 10, 64bit. You can use any deeplearning framework among tensorflow, keras and theano. I used anaconda containing all of them. 
+
+You can use
 ````
 pip install tensorflow-gpu
 ````
 
-And maybe mkl or numpy-mkl library is needed to run tensorflow. And it is known that the development of theano has been stopped so I personally recommend to use tensorflow or keras with tensorflow backend.
+And maybe mkl or numpy-mkl library is needed to run tensorflow. Also it is known that the development of theano has been stopped so I personally recommend to use tensorflow or keras with tensorflow backend.
 
 
 ## Simple Report
@@ -19,16 +27,25 @@ It takes much more time to run with keras-either tensorflow backend or theano ba
 
 The results made by rdevooght's paper seems only available in python 2. It was unable to reproduce in python3 although I copied his theano code based on python2 and modified to fit python3. But the result is reproducible in python2. The performance of models in this project is little bit lower than that of the original project.
 
-** When I tested with theano, only Adadelta and Adam optimizer didn't make nan as loss. But Adadelta was slower than Adam, so the only good option for theano would be Adam.**
+**When I tested with theano in python3, only Adadelta and Adam optimizer didn't make nan as loss. But Adadelta was slower than Adam, so the only good option for theano would be Adam.**
 
 
 ## Usage
 
-Use `-fr` option to select deeplearning framework. 'tf' for tensorflow, 'ktf' for keras-tensorflow backend, 'kth' for keras-theano backend, 'th' for theano. Available on train.py and test.py.
+Use `-fr` option to select deeplearning framework. **'tf'** for tensorflow, **'ktf'** for keras-tensorflow backend, **'kth'** for keras-theano backend, **'th'** for theano. Available on train.py and test.py.
 
 Example : `python train.py -fr tf`
 
-**Explanation below are copied from original github**
+`--act` Activation function for rnn.
+`--mem_frac` sets the fraction of memory to use for tensorflow or keras-tensorflow backend.
+`--save_log` You can set whether to save training logs when using tensorflow.
+`--log_dir` sets the directory to save training logs when using tensorflow.
+`-iter` In default(when this option is False) test.py make one input sequence per each users in test data for testing model dividing movie history into half. 
+If a user watched n movies, use m_1, m_2 ... m_n/2 as input and the others as criteria.
+If this is set True, test.py generates n input-criteria pairs like [m_1 / m_2 .. m_n], [m_1, m_2 / m_3 ... m_n] ... [m_1, m_2 .. m_n-1 / m_n].
+So you can evaluate the performance of model more precisly. Of course, this takes much more time.
+
+**Explanation below are copied from original github and simplified**
 
 ### train.py
 
@@ -46,7 +63,7 @@ The optional arguments are the following:
 Option | Desciption
 ------ | ----------
 `--dir dirname/` | Name of the subfolder of "path/to/dataset/models/" in which to save the model. By default it will be saved directly in the models/ folder, but using subfolders can be useful when many models are tested.
-`--progress {int or float}` | Number of iterations (or seconds) between two evaluations of the model on the validation set. When the model is evaluated, progress is shown on the command line, and the model might be saved (depending on the `--save` option). An float value means that the evaluations happen at geometric intervals (rather than linear). Default: 2.0
+`--progress {int or float}` | Number of iterations (or seconds) between two evaluations of the model on the validation set. When the model is evaluated, progress is shown on the command line, and the model might be saved (depending on the `--save` option). An float value means that the evaluations happen at geometric intervals (rather than linear). Default: 5000
 `--metrics value` | Metrics computed on the validation set, separated by commas. Available metrics are recall, sps, ndcg, item\_coverage, user\_coverage and blockbuster\_share. Default: sps.
 `--save [All, Best, None]` | Policy for saving models. If "None", no model is saved. If "All", the current model is saved each time the model is evaluated on the validation set, and no model is destroyed. If "Best", the current model is only saved if it improves over the previous best results on the validation set, and the previous best model is deleted. If "Best" and multiple metrics are used, all the pareto-optimal models are saved. 
 `--time_based_progress` | Base the interval between two evaluations on the number of elapsed seconds rather than on the number of iterations.
@@ -94,7 +111,7 @@ The RNN have many options allowing to change the type/size/number of layers, the
 
 Option | Desciption
 ------ | ----------
-`--r_t [LSTM, GRU, Vanilla]` | Type of recurrent layer (default is GRU)
+`--r_t [LSTM, GRU, Vanilla]` | Type of recurrent layer (default is LSTM)
 `--r_l size_of_layer1-size_of_layer2-etc.` | Size and number of layers. for example, `--r_l 100-50-50` creates a layer with 50 hidden neurons on top of another layer with 50 hidden neurons on top of a layer with 100 hidden neurons. Default: 32.
 `--r_bi` | Use bidirectional layers.
 `--r_emb size` | Adds an embedding layer before the recurrent layer. By default no embedding layer is used, but it is adviced to use one (e.g. `--r_emb 100`).
@@ -161,6 +178,6 @@ UserID::MovieID::Rating::Timestamp
 ````
 To process it you have to specify the order of the columns, in this case uirt (for user, item, rating, timestamp), and the separator ("::"). If you want to use a hundred users for the validation set and a hundred others for the test set, you'll have to use the following command:
 ````
-python preprocess.py -f path/to/ratings.dat --columns uirt --sep :: --val_size 100 --test_size 100
+python preprocess.py -f path/to/datafile(.dat or .csv, etc) --columns uirt --sep :: --val_size 100 --test_size 100
 ````
 

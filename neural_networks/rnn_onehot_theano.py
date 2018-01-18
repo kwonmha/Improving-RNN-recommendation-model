@@ -35,7 +35,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 	def _get_model_filename(self, epochs):
 		"""Return the name of the file to save the current model
 		"""
-		filename = "rnn_cce_db" + "_" + self._common_filename(epochs) + "." + self.framework
+		filename = "rnn_cce_" + self._common_filename(epochs) + "." + self.framework
 		return filename
 
 	def prepare_networks(self, n_items):
@@ -266,7 +266,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 					X[0, :len(seq_by_max_length), :] = np.array(map(lambda x: self._get_features(x), seq_by_max_length))
 					mask[0, :len(seq_by_max_length)] = 1
 
-					predictions = self.test_function((X, mask.astype(theano.config.float)))
+					predictions = self.test_function([X, mask.astype(theano.config.float)])
 					# print("predictions")
 					# print(predictions)
 					goal = sequence[length:][0]

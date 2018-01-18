@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import os
 import numpy as np
 import tensorflow as tf
 from .rnn_base import RNNBase
@@ -16,7 +17,7 @@ In practice, the classification error given by the categorical cross-entropy is 
 This will reduce the error associated to movies with a lot of views, putting therefore more importance on the ability of the network to correctly predict the rare movies.
 A diversity_bias of 0 produces the normal behavior, with no bias.
 	"""
-	def __init__(self, updater=None, recurrent_layer=None, mem_frac=None, save_log=False, diversity_bias=0.0, regularization=0.0, **kwargs):
+	def __init__(self, updater=None, recurrent_layer=None, mem_frac=None, save_log=False, log_dir=None, diversity_bias=0.0, regularization=0.0, **kwargs):
 		super(RNNOneHotTF, self).__init__(**kwargs)
 		
 		# self.diversity_bias = np.cast[theano.config.floatX](diversity_bias)
@@ -26,6 +27,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		self.mem_frac = mem_frac
 		self.updater = updater
 		self.recurrent_layer = recurrent_layer
+		self.log_dir = log_dir
 
 		gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.mem_frac)
 		self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
@@ -137,7 +139,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 
 		if self.save_log:
 			self.summary = tf.summary.merge_all()
-			self.writer = tf.summary.FileWriter('./logs', self.sess.graph)
+			self.writer = tf.summary.FileWriter('/' + self.log_dir, self.sess.graph)
 			self.writer.add_graph(self.sess.graph)
 			self.run = [self.summary, self.cost, self.training]
 		else:
@@ -250,5 +252,8 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 	def _load(self, filename):
 		'''Load parameters values from a file
 		'''
-		tf.train.Saver().restore(self.sess, filename)
+		exit()
+		saver = tf.train.import_meta_graph(filename)
+		saver.restore(self.sess, tf.train.latest_checkpoint(os.path.dirname(filename)))
+		self.sess.run(self.init)
 

@@ -20,14 +20,13 @@ def predictor_command_parser(parser):
 	parser.add_argument('-b', dest='batch_size', help='Batch size', default=16, type=int)
 	parser.add_argument('-l', dest='learning_rate', help='Learning rate', default=0.1, type=float)
 	parser.add_argument('-r', dest='regularization', help='Regularization (positive for L2, negative for L1)', default=0., type=float)
-	parser.add_argument('-g', dest='gradient_clipping', help='Gradient clipping', default=100, type=int)
 	parser.add_argument('--loss', help='Loss function, choose between TOP1, BPR and Blackout (Sampling), or hinge, logit and logsig (multi-targets), or CCE (Categorical cross-entropy)',
 						default='CCE', type=str)
 	parser.add_argument('--db', dest='diversity_bias', help='Diversity bias (for RNN with CCE, TOP1, BPR or Blackout loss)', default=0.0, type=float)
-	parser.add_argument('--cooling', help='Simulated annealing', default=1., type=float)
 	parser.add_argument('--max_length', help='Maximum length of sequences during training (for RNNs)', default=30, type=int)
 	parser.add_argument('--act', help='activation function in recurrent layer', choices=['relu', 'elu', 'lrelu', 'tanh'], default='tanh', type=str)
-	parser.add_argument('--log', help='log history when using tensorflow', action='store_true')
+	parser.add_argument('--save_log', help='log history when using tensorflow', action='store_true')
+	parser.add_argument('--log_dir', help='Directory name for saving tensorflow log.', default='', type=str)
 	parser.add_argument('--mem_frac', help='memory fraction for tensorflow', default=0.3, type=float)
 
 	parser.add_argument('--tying', help='tying embedding layer', action='store_true')
@@ -94,7 +93,7 @@ def get_predictor(args):
 	elif args.framework == 'tf':
 		from neural_networks.rnn_one_hot import RNNOneHotTF
 
-		return RNNOneHotTF(mem_frac=args.mem_frac, save_log=args.log, max_length=args.max_length, regularization=args.regularization, updater=updater, target_selection=target_selection,
+		return RNNOneHotTF(mem_frac=args.mem_frac, save_log=args.save_log, max_length=args.max_length, regularization=args.regularization, updater=updater, target_selection=target_selection,
 							 sequence_noise=sequence_noise, recurrent_layer=recurrent_layer, batch_size=args.batch_size, active_f=args.act,
 							tying=args.tying, temperature=args.temp, gamma=args.gamma, iter=args.iter, old=args.old, attention=args.att)
 
