@@ -33,7 +33,7 @@ def predictor_command_parser(parser):
 	parser.add_argument('--temp', help='temperature parameter', default=10, type=int)
 	parser.add_argument('--gamma', help='gamma', default=0.5, type=float)
 	parser.add_argument('--iter', help='train iteratively in every user subsequences', action='store_true')
-	parser.add_argument('--old', help='tying old version by mistake kk', action='store_true')
+	parser.add_argument('--tying_new', help='modified tying, use same output with new target vector', action='store_true')
 	parser.add_argument('--att', help='use attention mechanism', action='store_true')
 
 	namespace, args = parser.parse_known_args() #temporary args for checking framework
@@ -83,19 +83,22 @@ def get_predictor(args):
 	sequence_noise = get_sequence_noise(args)
 	target_selection = get_target_selection(args)
 
+	if args.framework.startswith('k') and args.tying :
+		raise ValueError('tying weight is not available in keras now ')
+
 	if args.framework == 'th':
 		from neural_networks.rnn_onehot_theano import RNNOneHotTH
 
 		return RNNOneHotTH(max_length=args.max_length, regularization=args.regularization, updater=updater, target_selection=target_selection,
 							 sequence_noise=sequence_noise, recurrent_layer=recurrent_layer, batch_size=args.batch_size, active_f=args.act,
-							tying=args.tying, temperature=args.temp, gamma=args.gamma, iter=args.iter, old=args.old, attention=args.att)
+							tying=args.tying, temperature=args.temp, gamma=args.gamma, iter=args.iter, tying_new=args.tying_new, attention=args.att)
 
 	elif args.framework == 'tf':
 		from neural_networks.rnn_one_hot import RNNOneHotTF
 
 		return RNNOneHotTF(mem_frac=args.mem_frac, save_log=args.save_log, max_length=args.max_length, regularization=args.regularization, updater=updater, target_selection=target_selection,
 							 sequence_noise=sequence_noise, recurrent_layer=recurrent_layer, batch_size=args.batch_size, active_f=args.act,
-							tying=args.tying, temperature=args.temp, gamma=args.gamma, iter=args.iter, old=args.old, attention=args.att)
+							tying=args.tying, temperature=args.temp, gamma=args.gamma, iter=args.iter, tying_new=args.tying_new, attention=args.att)
 
 	if args.framework == 'kth' or args.framework == 'ktf':
 		from neural_networks.rnn_oh_keras import RNNOneHotK
@@ -107,7 +110,7 @@ def get_predictor(args):
 
 		return RNNOneHotK(mem_frac=args.mem_frac, backend=backend, max_length=args.max_length, regularization=args.regularization, updater=updater, target_selection=target_selection,
 							 sequence_noise=sequence_noise, recurrent_layer=recurrent_layer, batch_size=args.batch_size, active_f=args.act,
-							tying=args.tying, temperature=args.temp, gamma=args.gamma, iter=args.iter, old=args.old, attention=args.att)
+							tying=args.tying, temperature=args.temp, gamma=args.gamma, iter=args.iter, tying_new=args.tying_new, attention=args.att)
 
 
 

@@ -66,68 +66,40 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 
 		self.last_rnn = self.last_relevant(self.rnn_out, self.length)
 
-		# The sliced output is then passed through linear layer to obtain the right output size
 		if self.recurrent_layer.embedding_size and self.tying:
-			#target distribution은 쓰고, weight tying은 안하는 경우를 위해 여기다 놓는다.
-			emb_l = lasagne.layers.get_all_layers(l_recurrent)[2]
-			self.emb_params = lasagne.layers.get_all_param_values(emb_l)[0]
-			# self.rec_val = lasagne.layers.get_output(l_recurrent)
-			#l_recurrent_kl = lasagne.layers.NonlinearityLayer(l_recurrent, nonlinearity=self.div_by_temperature)
-			# self.rec_kl_val = lasagne.layers.get_output(l_recurrent_kl) 확인용
 
+			if self.recurrent_layer.no_td: #not using embedding matrix to get new target vectors
+				target = self.Y
+			else: #default
+				t_vectors = tf.matmul(self.Y, word_embeddings)  # (16, 3416) * (3416 * 200) -> (16 * 200)
+				target = tf.matmul(t_vectors, tf.transpose(word_embeddings))  # (16, 200) * (200 * 3416) -> (16 * 3416)
+				target = tf.nn.softmax(target / self.temperature)
 
-			if not self.recurrent_layer.only_td: #weight tying
-				if not self.tying_old:
-					intermediate = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, W=emb_l.W.T, b=None, nonlinearity=None) #Wh
-					inter_b = lasagne.layers.BiasLayer(intermediate) #Wh + b
-					self.l_out = lasagne.layers.NonlinearityLayer(inter_b, nonlinearity=lasagne.nonlinearities.softmax) #softmax(Wh + b)
-					self.l_out_kl = lasagne.layers.NonlinearityLayer(intermediate, nonlinearity=self.softmax_temperature) #softmax (Wh / t) without bias
-				else:
-					#아마 예전 버전...
-					self.l_out = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, W=emb_l.W.T, nonlinearity=lasagne.nonlinearities.softmax)
-					# ref github implementation, maybe mistake, bad result
-					# self.l_out = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, W=emb_l.W.T, b=None, nonlinearity=self.softmax_temperature)
-			else:
-				if not self.tying_old:
-					intermediate = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, b=None, nonlinearity=None)  # Wh
-					inter_b = lasagne.layers.BiasLayer(intermediate)  # Wh + b
-					self.l_out = lasagne.layers.NonlinearityLayer(inter_b, nonlinearity=lasagne.nonlinearities.softmax)  # softmax(Wh + b)
-					self.l_out_kl = lasagne.layers.NonlinearityLayer(intermediate, nonlinearity=self.softmax_temperature)  # softmax (Wh / t) without bias
-				else:
-					self.l_out = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, nonlinearity=lasagne.nonlinearities.softmax)
+			if self.recurrent_layer.no_wt: # not using embedding matrix to get network output
+				w_nwt = tf.get_variable("w_nwt", [self.recurrent_layer.embedding_size, self.n_items])
+				wh = tf.matmul(self.last_rnn, w_nwt)
+
+			else: #default
+				wh = tf.matmul(self.last_rnn, tf.transpose(word_embeddings)) # (16 * emb) * (emb n) -> (16 * n)
+
+			bias = tf.get_variable("bias", self.n_items)
+			whb = tf.nn.bias_add(wh, bias)  # Wh + b
+			self.softmax = tf.nn.softmax(whb)
+			self.cost1 = self.kullback_leibler_divergence(self.Y, self.softmax)
+
+			if self.tying_new:
+				self.cost2 = self.kullback_leibler_divergence(target, self.softmax)
+
+			else: #following tying matrix paper
+				new_output = tf.nn.softmax(wh/self.temperature)
+				self.cost2 = self.kullback_leibler_divergence(target, new_output)
+
+			self.cost = self.cost1 + self.cost2 * (self.gamma * self.temperature)  # gamma * temperature
+
 		else:
 			self.output = tf.layers.dense(self.last_rnn, self.n_items, activation=None)
+			self.softmax = tf.nn.softmax(self.output)
 
-		self.softmax = tf.nn.softmax(self.output)
-
-		# loss function
-		if self.recurrent_layer.embedding_size and self.tying:
-			#TODO
-
-			#cost1 = (T.nnet.categorical_crossentropy(network_output, target)).mean() 9/30까지 잘못 씀... -> 1 hot이면 그게 그거!
-			cost1 = (self.kullback_leibler_divergence(target, network_output)).mean() #그래도 결과가 다른 듯?? 테스트 필요....
-			cost2 = 0
-			if not self.recurrent_layer.not_target_distribution:
-				print("get target distribution")
-				# emb_l = lasagne.layers.get_all_layers(l_last_slice)[2]
-				# self.emb_params = lasagne.layers.get_all_param_values(emb_l)[0]
-				t_vectors = T.dot(target, self.emb_params ) # (16, 3416) * (3416 * 200) -> (16 * 200)
-				target = T.dot(t_vectors, np.transpose(self.emb_params)) # (16, 200) * (200 * 3416) -> (16 * 3416)
-				target = T.nnet.softmax(target / self.temperature) # / temperature (아마 이 과정을 거치면서 T.clip을 안해도 될 듯)
-				#target distribution과 one-hot 값을 비교해보자..
-
-				if not self.tying_old:
-					output_kl = lasagne.layers.get_output(self.l_out_kl)
-					# output_kl = T.clip(output_kl, 10e-8, 1)
-					# target = T.clip(target, 10e-8, 1)
-					# self.log = T.log(self.target / network_output) #1보다 크다 == target > network_output
-					cost2 = (self.kullback_leibler_divergence(target,output_kl)).mean()
-				else:
-					# target = T.clip(target, 10e-8, 1)
-					cost2 = (self.kullback_leibler_divergence(target, network_output)).mean()
-			self.cost = cost1 + cost2 * (self.gamma * self.temperature) # gamma * temperature
-			# self.cost = cost1 + cost2 * 5  # temperature만 비교하기 위해 5로 고정
-		else:
 			self.xent = -tf.reduce_sum(self.Y * tf.log(self.softmax))
 			self.cost = tf.reduce_mean(self.xent)
 			# tf.summary.histogram("cost", self.cost)
@@ -141,9 +113,6 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 			self.summary = tf.summary.merge_all()
 			self.writer = tf.summary.FileWriter('/' + self.log_dir, self.sess.graph)
 			self.writer.add_graph(self.sess.graph)
-			self.run = [self.summary, self.cost, self.training]
-		else:
-			self.run = [self.cost, self.training]
 
 	def get_activation(self, name):
 		if name=='tanh':
@@ -170,12 +139,8 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		return length
 
 	def kullback_leibler_divergence(self, y_true, y_pred):
-		# y_true = tf.clip(y_true, 10e-8, 1)
-		# y_pred = tf.clip(y_pred, 10e-8, 1)
-		return tf.reduce_mean(tf.reduce_sum(y_true * tf.log(y_true / y_pred), axis=-1))
-
-	def softmax_temperature(self, x):
-		return tf.nn.softmax(x / self.temperature)
+		y_true = tf.maximum(y_true, 10e-8) # prevent 0 into tf.log
+		return tf.reduce_mean(tf.reduce_sum(y_true * tf.log(y_true / y_pred)))
 
 	def _prepare_input(self, sequences):
 		""" Sequences is a list of [user_id, input_sequence, targets]
@@ -185,7 +150,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 
 		# Shape of return variables
 		if self.recurrent_layer.embedding_size > 0:
-			X = np.zeros((batch_size, self.max_length), dtype=np.int32)  # keras embedding requires movie-id sequence, not one-hot
+			X = np.zeros((batch_size, self.max_length), dtype=np.int32)  # tf embedding requires movie-id sequence, not one-hot
 		else:
 			X = np.zeros((batch_size, self.max_length, self.n_items), dtype=self._input_type)  # input of the RNN
 		Y = np.zeros((batch_size, self.n_items), dtype=np.float32)  # output target

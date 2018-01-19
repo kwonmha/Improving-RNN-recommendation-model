@@ -54,7 +54,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		self.l_mask = lasagne.layers.InputLayer(shape=(self.batch_size, self.max_length))
 
 		# recurrent layer
-		self.l_recurrent = self.recurrent_layer(self.l_in, self.l_mask)
+		self.l_recurrent = self.recurrent_layer(self.l_in, self.l_mask, self.n_items)
 
 		# Theano tensor for the targets
 		target = T.fmatrix('target_output')
@@ -65,76 +65,45 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		# self.theano_inputs = [self.l_in.input_var, self.l_mask.input_var, target, target_popularity, self.exclude]  # ratings
 		self.theano_inputs = [self.l_in.input_var, self.l_mask.input_var, target]  # ratings
 
-		# The sliced output is then passed through linear layer to obtain the right output size
 		if self.recurrent_layer.embedding_size and self.tying:
-			# target distribution은 쓰고, weight tying은 안하는 경우를 위해 여기다 놓는다.
-			emb_l = lasagne.layers.get_all_layers(l_recurrent)[2]
+
+			emb_l = lasagne.layers.get_all_layers(self.l_recurrent)[2]
 			self.emb_params = lasagne.layers.get_all_param_values(emb_l)[0]
-			# self.rec_val = lasagne.layers.get_output(l_recurrent)
-			# l_recurrent_kl = lasagne.layers.NonlinearityLayer(l_recurrent, nonlinearity=self.div_by_temperature)
-			# self.rec_kl_val = lasagne.layers.get_output(l_recurrent_kl) 확인용
 
-			if self.attention:
-				l_recurrent = AttentionLayer(l_recurrent)
+			if self.recurrent_layer.no_td: #not using embedding matrix to get new target vectors
+				# target remains in one-hot
+				new_target = target
+			else: #default
+				t_vectors = T.dot(target, self.emb_params)  # (16, 3416) * (3416 * 200) -> (16 * 200)
+				new_target = T.dot(t_vectors, np.transpose(self.emb_params))  # (16, 200) * (200 * 3416) -> (16 * 3416)
+				new_target = T.nnet.softmax(new_target / self.temperature)
 
-			if not self.recurrent_layer.only_td:  # weight tying
-				if not self.tying_old:
-					intermediate = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, W=emb_l.W.T, b=None, nonlinearity=None)  # Wh
-					inter_b = lasagne.layers.BiasLayer(intermediate)  # Wh + b
-					self.l_out = lasagne.layers.NonlinearityLayer(inter_b, nonlinearity=lasagne.nonlinearities.softmax)  # softmax(Wh + b)
-					self.l_out_kl = lasagne.layers.NonlinearityLayer(intermediate, nonlinearity=self.softmax_temperature)  # softmax (Wh / t) without bias
-				else:
-					# 아마 예전 버전...
-					self.l_out = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, W=emb_l.W.T, nonlinearity=lasagne.nonlinearities.softmax)
-				# ref github implementation, maybe mistake, bad result
-				# self.l_out = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, W=emb_l.W.T, b=None, nonlinearity=self.softmax_temperature)
-			else:
-				if not self.tying_old:
-					intermediate = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, b=None, nonlinearity=None)  # Wh
-					inter_b = lasagne.layers.BiasLayer(intermediate)  # Wh + b
-					self.l_out = lasagne.layers.NonlinearityLayer(inter_b, nonlinearity=lasagne.nonlinearities.softmax)  # softmax(Wh + b)
-					self.l_out_kl = lasagne.layers.NonlinearityLayer(intermediate, nonlinearity=self.softmax_temperature)  # softmax (Wh / t) without bias
-				else:
-					self.l_out = lasagne.layers.DenseLayer(l_recurrent, num_units=self.n_items, nonlinearity=lasagne.nonlinearities.softmax)
-		elif self.attention:
-			attention = AttentionLayer(l_recurrent)
-			self.l_out = lasagne.layers.DenseLayer(attention, num_units=self.n_items, nonlinearity=lasagne.nonlinearities.softmax)
+			if self.recurrent_layer.no_wt: # not using embedding matrix to get network output
+				wh = lasagne.layers.DenseLayer(self.l_recurrent, num_units=self.n_items, b=None, nonlinearity=None) #Wh
+			else: #default
+				wh = lasagne.layers.DenseLayer(self.l_recurrent, num_units=self.n_items, W=emb_l.W.T, b=None, nonlinearity=None)  # Wh
+
+			whb = lasagne.layers.BiasLayer(wh)  # Wh + b
+			self.l_out =  lasagne.layers.NonlinearityLayer(whb, nonlinearity=lasagne.nonlinearities.softmax) # use this one as output on prediction
+			network_output = lasagne.layers.get_output(self.l_out)
+			self.cost1 = (self.kullback_leibler_divergence(target, network_output)).mean()
+
+			if self.tying_new:
+				self.cost2 = (self.kullback_leibler_divergence(new_target, network_output)).mean()
+
+			else: #following tying matrix paper
+				self.l_new_out = lasagne.layers.NonlinearityLayer(wh, nonlinearity=self.softmax_temperature)
+				new_output = lasagne.layers.get_output(self.l_new_out)
+				self.cost2 = (self.kullback_leibler_divergence(new_target, new_output)).mean()
+
+			self.cost = self.cost1 + self.cost2 * (self.gamma * self.temperature)  # gamma * temperature
+
 		else:
 			self.l_out = lasagne.layers.DenseLayer(self.l_recurrent, num_units=self.n_items, nonlinearity=lasagne.nonlinearities.softmax)
+			network_output = lasagne.layers.get_output(self.l_out)
 
-		# lasagne.layers.get_output produces a variable for the output of the net
-		network_output = lasagne.layers.get_output(self.l_out)
-		# print(lasagne.layers.get_output_shape(self.l_out)) #(16, 3706)
-
-		# loss function
-		# self.cost = (T.nnet.categorical_crossentropy(network_output,self.target) / self.target_popularity).mean()
-		if self.recurrent_layer.embedding_size and self.tying:
-			# cost1 = (T.nnet.categorical_crossentropy(network_output, target)).mean() 9/30까지 잘못 씀... -> 1 hot이면 그게 그거!
-			cost1 = (self.kullback_leibler_divergence(target, network_output)).mean()  # 그래도 결과가 다른 듯?? 테스트 필요....
-			cost2 = 0
-			if not self.recurrent_layer.not_target_distribution:
-				print("get target distribution")
-				# emb_l = lasagne.layers.get_all_layers(l_last_slice)[2]
-				# self.emb_params = lasagne.layers.get_all_param_values(emb_l)[0]
-				t_vectors = T.dot(target, self.emb_params)  # (16, 3416) * (3416 * 200) -> (16 * 200)
-				target = T.dot(t_vectors, np.transpose(self.emb_params))  # (16, 200) * (200 * 3416) -> (16 * 3416)
-				target = T.nnet.softmax(target / self.temperature)  # / temperature (아마 이 과정을 거치면서 T.clip을 안해도 될 듯)
-				# target distribution과 one-hot 값을 비교해보자..
-
-				if not self.tying_old:
-					output_kl = lasagne.layers.get_output(self.l_out_kl)
-					# output_kl = T.clip(output_kl, 10e-8, 1)
-					# target = T.clip(target, 10e-8, 1)
-					# self.log = T.log(self.target / network_output) #1보다 크다 == target > network_output
-					cost2 = (self.kullback_leibler_divergence(target, output_kl)).mean()
-				else:
-					# target = T.clip(target, 10e-8, 1)
-					cost2 = (self.kullback_leibler_divergence(target, network_output)).mean()
-			self.cost = cost1 + cost2 * (self.gamma * self.temperature)  # gamma * temperature
-		# self.cost = cost1 + cost2 * 5  # temperature만 비교하기 위해 5로 고정
-		else:
-			# self.cost = (ratings * T.nnet.categorical_crossentropy(network_output, target)).mean()
 			self.cost = (-T.sum(target * T.log(network_output), axis=network_output.ndim - 1)).mean()
+
 
 		if self.regularization > 0.:
 			self.cost += self.regularization * lasagne.regularization.l2(self.l_out.b)
@@ -205,10 +174,8 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		all_params = lasagne.layers.get_all_params(self.l_out, trainable=True)
 		updates = self.updater(self.cost, all_params)
 
-		deterministic_output = lasagne.layers.get_output(self.l_out, deterministic=True)
-		rnn_output = lasagne.layers.get_output(self.l_recurrent, deterministic=True)
 		# Compile network
-		self.train_function = theano.function(self.theano_inputs, [self.cost, deterministic_output, rnn_output], updates=updates, allow_input_downcast=True,
+		self.train_function = theano.function(self.theano_inputs, self.cost, updates=updates, allow_input_downcast=True,
 											  name="Train_function", on_unused_input='ignore')
 		print("Compilation done.")
 

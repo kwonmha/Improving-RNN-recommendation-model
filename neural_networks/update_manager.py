@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 def update_manager_command_parser(parser):
-	parser.add_argument('--u_m', dest='update_manager', choices=['adagrad', 'adadelta', 'rmsprop', 'nesterov', 'adam'], help='Update mechanism', default='adagrad')
+	parser.add_argument('--u_m', dest='update_manager', choices=['adagrad', 'adadelta', 'rmsprop', 'nesterov', 'adam'], help='Update mechanism', default='adam')
 	parser.add_argument('--u_l', help='Learning rate', default=0.1, type=float)
 	parser.add_argument('--u_rho', help='rho parameter for Adadelta and RMSProp (momentum for Nesterov momentum)', default=0.9, type=float)
 	parser.add_argument('--u_b1', help='Beta 1 parameter for Adam', default=0.9, type=float)
@@ -17,7 +17,7 @@ def get_update_manager(args):
 	elif args.update_manager == 'nesterov':
 		return NesterovMomentum(learning_rate = args.u_l, momentum = args.u_rho)
 	elif args.update_manager == 'adam':
-		return Adam(learning_rate = args.u_l, beta1 = args.u_b1, beta2 = args.u_b2)
+		return Adam()
 	else:
 		raise ValueError('Unknown update option')
 

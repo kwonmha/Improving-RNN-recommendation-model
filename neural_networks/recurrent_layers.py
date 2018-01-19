@@ -10,22 +10,22 @@ def recurrent_layers_command_parser(parser):
 						help='Add an embedding layer before the RNN. Takes the size of the embedding as parameter, a size<1 means no embedding layer.',
 						type=int, default=0)
 	parser.add_argument('--ntd', help='do not get distribution for target, only tying', action='store_true')
-	parser.add_argument('--otd', help='only get distribution for target(do not tying)', action='store_true')
+	parser.add_argument('--nwd', help='only get distribution for target(do not tying)', action='store_true')
 
 def get_recurrent_layers(args):
 	return RecurrentLayers(layer_type=args.recurrent_layer_type, layers=list(map(int, args.r_l.split('-'))), bidirectional=args.r_bi,
-						   embedding_size=args.r_emb, ntd=args.ntd, otd=args.otd)
+						   embedding_size=args.r_emb, ntd=args.ntd, nwd=args.nwd)
 
 class RecurrentLayers(object):
-	def __init__(self, layer_type="LSTM", layers=[32], bidirectional=False, embedding_size=0, grad_clipping=100, ntd=False, otd=False):
+	def __init__(self, layer_type="LSTM", layers=[32], bidirectional=False, embedding_size=0, grad_clipping=100, ntd=False, nwd=False):
 		super(RecurrentLayers, self).__init__()
 		self.layer_type = layer_type
 		self.layers = layers
 		self.bidirectional = bidirectional
 		self.embedding_size = embedding_size
 		self.grad_clip=grad_clipping
-		self.not_target_distribution = ntd
-		self.only_td = otd
+		self.no_td = ntd
+		self.no_wt = nwd
 		self.set_name()
 
 	def set_name(self):
@@ -39,10 +39,10 @@ class RecurrentLayers(object):
 		self.name += "gc"+str(self.grad_clip)+"_"
 		if self.embedding_size > 0:
 			self.name += "e"+str(self.embedding_size) + "_"
-			if self.not_target_distribution :
+			if self.no_td :
 				self.name += "ntd_"
-			if self.only_td:
-				self.name += "otd_"
+			if self.no_wt:
+				self.name += "nwd_"
 		self.name += "h"+('-'.join(map(str,self.layers)))
 
 

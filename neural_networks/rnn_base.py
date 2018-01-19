@@ -26,7 +26,7 @@ class RNNBase(object):
 		temperature=10,
 		gamma=0.5,
 		iter=False,
-		old = False,
+		tying_new = False,
 		attention=False):
 
 		super(RNNBase, self).__init__()
@@ -40,7 +40,7 @@ class RNNBase(object):
 		self.temperature = temperature
 		self.gamma = gamma
 		self.iter = iter
-		self.tying_old = old
+		self.tying_new = tying_new
 		self.attention = attention
 
 		self._input_type = 'float32'
@@ -68,8 +68,8 @@ class RNNBase(object):
 			filename += "_act" + self.active_f[0].upper()
 		if self.tying:
 			filename += "_ty_tp" + str(self.temperature) + "_gm" + str(self.gamma)
-			if self.tying_old:
-				filename += "_old"
+			if self.tying_new:
+				filename += "_new"
 		if self.iter:
 			filename += "_it"
 		if self.attention:
@@ -200,12 +200,14 @@ class RNNBase(object):
 
 					if self.framework == 'tf':
 						if self.save_log:
-							s, cost, _ = self.sess.run(self.run, feed_dict={self.X: batch[0], self.Y: batch[1]})
+							s, cost, _ = self.sess.run([self.summary, self.cost, self.tarining], feed_dict={self.X: batch[0], self.Y: batch[1]})
 							self.writer.add_summary(s, iterations)
 						else:
-							cost, _ = self.sess.run(self.run, feed_dict={self.X: batch[0], self.Y: batch[1]})
+							cost, _ = self.sess.run([self.cost, self.training], feed_dict={self.X: batch[0], self.Y: batch[1]})
 
-						# print(length)
+						# print(c1)
+						# print(c2)
+						# print("================================================")
 						# print(rnn_out[0,:30,:6])
 						# print(last_rnn[0, :6])
 						# print(cost)
@@ -218,7 +220,7 @@ class RNNBase(object):
 						# print(batch[1])
 
 					else:
-						cost, output, rnn_out = self.train_function(*batch)
+						cost = self.train_function(*batch)
 						# print(rnn_out)
 						# print(output)
 						# print(cost)
@@ -257,7 +259,7 @@ class RNNBase(object):
 						# Print info
 						self._print_progress(iterations, epochs[-1], start_time, train_costs, metrics,
 											 validation_metrics)
-						# exit()
+						exit()
 
 						# Save model
 						run_nb = len(metrics[list(self.metrics.keys())[0]]) - 1
@@ -272,7 +274,7 @@ class RNNBase(object):
 								to_delete = [r for r in filename if r not in pareto_runs]
 								for run in to_delete:
 									try:
-										if self.framework == 'tensorflow' :
+										if self.framework == 'tf' :
 											os.remove(filename[run] + ".data-00000-of-00001")
 											os.remove(filename[run] + ".index")
 											os.remove(filename[run] + ".meta")
