@@ -9,7 +9,7 @@ For reproducibility, you can download the same preprocessed data sequence from h
 - Tensorflow >= 1.4.0 or keras >=2.1.2 or theano 0.8.2 with lasagne 0.2.dev1
 - Numpy
 - _pickle
-_ h5py for saving keras model
+- h5py for saving keras model
 
 ## Installation
 This project runs on windows 10, 64bit. You can use any deeplearning framework among tensorflow, keras and theano. I used anaconda containing all of them. 
