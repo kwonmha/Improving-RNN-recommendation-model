@@ -54,7 +54,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		self.l_mask = lasagne.layers.InputLayer(shape=(self.batch_size, self.max_length))
 
 		# recurrent layer
-		self.l_recurrent = self.recurrent_layer(self.l_in, self.l_mask, self.n_items)
+		self.l_recurrent = self.recurrent_layer(self.l_in, self.l_mask, (self.batch_size, self.max_length, self.n_items))
 
 		# Theano tensor for the targets
 		target = T.fmatrix('target_output')
@@ -67,7 +67,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 
 		if self.recurrent_layer.embedding_size and self.tying:
 
-			emb_l = lasagne.layers.get_all_layers(self.l_recurrent)[2]
+			emb_l = lasagne.layers.get_all_layers(self.l_recurrent)[3]
 			self.emb_params = lasagne.layers.get_all_param_values(emb_l)[0]
 
 			if self.recurrent_layer.no_td: #not using embedding matrix to get new target vectors
@@ -138,6 +138,8 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 			user_id, in_seq, target = sequence
 
 			seq_features = np.array(list(map(lambda x: self._get_features(x), in_seq)))
+			# seq_features = np.array([*map(lambda x: self._get_features(x), in_seq)])
+			# seq_features = np.array([self._get_features(x) for x in in_seq])
 			X[i, :len(in_seq), :] = seq_features  # Copy sequences into X
 			mask[i, :len(in_seq)] = 1
 
@@ -162,7 +164,6 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		f = open(filename, 'rb')
 		param = cPickle.load(f)
 		f.close()
-		#print(param[0].astype(theano.config.floatX).shape) 기존 파일들을 불러와서 shape가 안 맞는듯
 		lasagne.layers.set_all_param_values(self.l_out, [i.astype(theano.config.floatX) for i in param])
 
 	def _compile_train_function(self):
@@ -172,6 +173,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		'''
 		print("Compiling train...")
 		all_params = lasagne.layers.get_all_params(self.l_out, trainable=True)
+
 		updates = self.updater(self.cost, all_params)
 
 		# Compile network

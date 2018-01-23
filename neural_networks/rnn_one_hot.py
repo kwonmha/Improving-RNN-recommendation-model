@@ -56,13 +56,10 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 			self.X = tf.placeholder(tf.float32, [None, self.max_length, self.n_items])
 			rnn_input = self.X
 		self.Y = tf.placeholder(tf.float32, [None, self.n_items])
+		self.length = tf.placeholder(tf.int32, [None, ])
 
-		self.length = self.get_length(rnn_input)
+		# self.length = self.get_length(rnn_input)
 		self.rnn_out, _state = self.recurrent_layer(rnn_input, self.length, activate_f=activation)
-
-		# batch_range = tf.range(tf.shape(self.rnn_out)[0]) # [0, 1, ... b(15)]
-		# self.indices = tf.stack([batch_range, self.l2], axis=1) #[[0, l2[0]], [1, [l2[1] ...]
-		# self.last_rnn = tf.gather_nd(self.rnn_out, self.indices)
 
 		self.last_rnn = self.last_relevant(self.rnn_out, self.length)
 
@@ -124,12 +121,12 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		elif name=='sigmoid':
 			return tf.nn.sigmoid
 
-	def last_relevant(self, input, length):
-		batch_size = tf.shape(input)[0]
-		max_length = int(input.get_shape()[1])
-		input_size = int(input.get_shape()[2])
+	def last_relevant(self, seq, length):
+		batch_size = tf.shape(seq)[0]
+		max_length = int(seq.get_shape()[1])
+		input_size = int(seq.get_shape()[2])
 		index = tf.range(0, batch_size) * max_length + (length - 1)
-		flat = tf.reshape(input, [-1, input_size])
+		flat = tf.reshape(seq, [-1, input_size])
 		return tf.gather(flat, index)
 
 	def get_length(self, sequence):
@@ -153,6 +150,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 			X = np.zeros((batch_size, self.max_length), dtype=np.int32)  # tf embedding requires movie-id sequence, not one-hot
 		else:
 			X = np.zeros((batch_size, self.max_length, self.n_items), dtype=self._input_type)  # input of the RNN
+		length = np.zeros((batch_size), dtype=np.int32)
 		Y = np.zeros((batch_size, self.n_items), dtype=np.float32)  # output target
 
 		for i, sequence in enumerate(sequences):
@@ -164,9 +162,10 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 				seq_features = np.array(list(map(lambda x: self._get_features(x), in_seq)))
 				X[i, :len(in_seq), :] = seq_features  # Copy sequences into X
 
+			length[i] = len(in_seq)
 			Y[i][target[0][0]] = 1.
 
-		return X, Y
+		return X, Y, length
 
 	def _compute_validation_metrics(self, metrics):
 		"""
@@ -175,7 +174,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		ev = evaluation.Evaluator(self.dataset, k=10)
 		if not self.iter:
 				for batch_input, goal in self._gen_mini_batch(self.dataset.validation_set(epochs=1), test=True):
-					output = self.sess.run(self.softmax, feed_dict={self.X: batch_input[0]})
+					output = self.sess.run(self.softmax, feed_dict={self.X: batch_input[0], self.length: batch_input[2]})
 					predictions = np.argpartition(-output, list(range(10)), axis=-1)[0, :10]
 					# print("predictions")
 					# print(predictions)
@@ -183,18 +182,20 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		else:
 			for sequence, user in self.dataset.validation_set(epochs=1):
 				seq_lengths = list(range(1, len(sequence))) # 1, 2, 3, ... len(sequence)-1
-				for length in seq_lengths:
+				for seq_length in seq_lengths:
 					X = np.zeros((1, self.max_length, self._input_size()), dtype=self._input_type)  # input shape of the RNN
 					# Y = np.zeros((1, self.n_items))  # Y가 왜 있는지????? 안쓰임
+					length = np.zeros((1,), dtype=np.int32)
 
-					seq_by_max_length = sequence[max(length - self.max_length, 0):length]  # last max length or all
+					seq_by_max_length = sequence[max(length - self.max_length, 0):seq_length]  # last max length or all
 					X[0, :len(seq_by_max_length), :] = np.array(map(lambda x: self._get_features(x), seq_by_max_length))
+					length[0] = len(seq_by_max_length)
 
-					output = self.sess.run(self.softmax, feed_dict={self.X: X})
+					output = self.sess.run(self.softmax, feed_dict={self.X: X, self.length: length})
 					predictions = np.argpartition(-output, list(range(10)), axis=-1)[0, :10]
 					# print("predictions")
 					# print(predictions)
-					goal = sequence[length:][0]
+					goal = sequence[seq_length:][0]
 					ev.add_instance(goal, predictions)
 
 		metrics['recall'].append(ev.average_recall())

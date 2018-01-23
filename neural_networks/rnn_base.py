@@ -119,8 +119,7 @@ class RNNBase(object):
 	def train(self, dataset,
 		max_time=np.inf,
 		progress=2.0, 
-		time_based_progress=False, 
-		autosave='All', 
+		autosave='All',
 		save_dir='', 
 		min_iterations=0, 
 		max_iter=np.inf,
@@ -162,6 +161,14 @@ class RNNBase(object):
 			raise ValueError(
 				'Incorrect validation metrics. Metrics must be chosen among: ' + ', '.join(self.metrics.keys()))
 
+		if self.framework=='tf':
+			self.sess.run(self.init)
+		elif self.framework == 'th':
+			if not hasattr(self, 'train_function'):
+				self._compile_train_function()
+			if not hasattr(self, 'test_function'):
+				self._compile_test_function()
+
 		# Load last model if needed
 		iterations = 0
 		epochs_offset = 0
@@ -181,32 +188,29 @@ class RNNBase(object):
 		epochs = []
 		metrics = {name: [] for name in self.metrics.keys()}
 		filename = {}
-
-		if self.framework=='tf':
-			self.sess.run(self.init)
-		elif self.framework == 'th':
-			if not hasattr(self, 'train_function'):
-				self._compile_train_function()
-			if not hasattr(self, 'test_function'):
-				self._compile_test_function()
+		bs_sum = 0
+		ts_sum = 0
 
 		try: 
 			while time() - start_time < max_time and iterations < max_iter:
 
 				# Train with a new batch
 				try:
+					bs = time()
 					batch = next(batch_generator)
+					bs_sum += time() - bs
 					# np.set_printoptions(threshold=np.inf)
 
 					if self.framework == 'tf':
+						ts = time()
 						if self.save_log:
-							s, cost, _ = self.sess.run([self.summary, self.cost, self.tarining], feed_dict={self.X: batch[0], self.Y: batch[1]})
+							s, cost, _ = self.sess.run([self.summary, self.cost, self.tarining], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
 							self.writer.add_summary(s, iterations)
 						else:
-							cost, _ = self.sess.run([self.cost, self.training], feed_dict={self.X: batch[0], self.Y: batch[1]})
+							cost, _ = self.sess.run([self.cost, self.training], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
 
-						# print(c1)
-						# print(c2)
+						ts_sum += time() - ts
+
 						# print("================================================")
 						# print(rnn_out[0,:30,:6])
 						# print(last_rnn[0, :6])
@@ -220,8 +224,9 @@ class RNNBase(object):
 						# print(batch[1])
 
 					else:
+						ts = time()
 						cost = self.train_function(*batch)
-						# print(rnn_out)
+						ts_sum += time() - ts
 						# print(output)
 						# print(cost)
 
@@ -239,13 +244,8 @@ class RNNBase(object):
 				# Check if it is time to save the model
 				iterations += 1
 
-				if time_based_progress:
-					progress_indicator = int(time() - start_time)
-				else:
-					progress_indicator = iterations
-
-				if progress_indicator >= next_save:
-					if progress_indicator >= min_iterations:
+				if iterations >= next_save:
+					if iterations >= min_iterations:
 						# Save current epoch
 						epochs.append(epochs_offset + self.dataset.training_set.epochs)
 
@@ -259,7 +259,10 @@ class RNNBase(object):
 						# Print info
 						self._print_progress(iterations, epochs[-1], start_time, train_costs, metrics,
 											 validation_metrics)
-						exit()
+						print(bs_sum, ts_sum)
+						bs_sum = 0
+						ts_sum = 0
+						# exit()
 
 						# Save model
 						run_nb = len(metrics[list(self.metrics.keys())[0]]) - 1

@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import lasagne
+import theano.tensor as T
 
 def recurrent_layers_command_parser(parser):
 	parser.add_argument('--r_t', dest='recurrent_layer_type', choices=['LSTM', 'GRU', 'Vanilla'], help='Type of recurrent layer', default='LSTM')
@@ -46,18 +47,18 @@ class RecurrentLayers(object):
 		self.name += "h"+('-'.join(map(str,self.layers)))
 
 
-	def __call__(self, input, mask_layer, input_size, activate_f=None):
+	def __call__(self, input_layer, mask_layer, input_shape=None, activate_f=None):
 		if self.embedding_size > 0:
-			in_int32 = lasagne.layers.ExpressionLayer(input, lambda x: x.astype('int32'))  # change type of input
-			l_emb = lasagne.layers.flatten(
-				lasagne.layers.EmbeddingLayer(in_int32, input_size=input_size, output_size=self.embedding_size), outdim=3)
+			in_int32 = lasagne.layers.ExpressionLayer(input_layer, lambda x: x.astype('int32'))  # change type of input
+			in_int32_idx = lasagne.layers.ExpressionLayer(in_int32, lambda x: T.argmax(x, axis=2), output_shape=(input_shape[0], input_shape[1],))
+			l_emb = lasagne.layers.EmbeddingLayer(in_int32_idx, input_size=input_shape[2], output_size=self.embedding_size)
 			l_rec = self.get_recurrent_layers(l_emb, mask_layer)
 		else:
-			l_rec = self.get_recurrent_layers(input, mask_layer, activate_f=activate_f)
+			l_rec = self.get_recurrent_layers(input_layer, mask_layer, activate_f=activate_f)
 
 		return l_rec
 
-	def get_recurrent_layers(self, input_layer, mask_layer, activate_f=lasagne.nonlinearities.rectify, only_return_final=True):
+	def get_recurrent_layers(self, input_layer, mask_layer, activate_f=lasagne.nonlinearities.tanh, only_return_final=True):
 
 		orf = False
 		prev_layer = input_layer
