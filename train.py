@@ -13,15 +13,12 @@ def training_command_parser(parser):
 	parser.add_argument('--dir', help='Directory name to save model.', default='', type=str)
 	parser.add_argument('--save', choices=['All', 'Best', 'None'], help='Policy for saving models.', default='Best')
 	parser.add_argument('--metrics', help='Metrics for validation, comma separated', default='sps', type=str)
-	parser.add_argument('--time_based_progress', help='Follow progress based on time rather than iterations.', action='store_true')
 	parser.add_argument('--load_last_model', help='Load Last model before starting training.', action='store_true')
-	#parser.add_argument('--progress', help='Progress intervals', default='2.', type=str)
 	parser.add_argument('--progress', help='Progress intervals', default='5000', type=str)
 	parser.add_argument('--mpi', help='Max progress intervals', default=np.inf, type=float)
 	parser.add_argument('--max_iter', help='Max number of iterations', default=np.inf, type=float)
 	parser.add_argument('--max_time', help='Max training time in seconds', default=np.inf, type=float)
 	parser.add_argument('--min_iter', help='Min number of iterations before showing progress', default=50000, type=float) # 10 epoch for ml1m
-	#parser.add_argument('--min_iter', help='Min number of iterations before showing progress', default=999,	type=float)
 
 def num(s):
 	try:
@@ -48,8 +45,7 @@ def main():
 	predictor.prepare_networks(dataset.n_items)
 	predictor.train(dataset,
 		save_dir=dataset.dirname + "models/" + args.dir, 
-		time_based_progress=args.time_based_progress, 
-		progress=num(args.progress), 
+		progress=num(args.progress),
 		autosave=args.save, 
 		max_iter=args.max_iter,
 		min_iterations=args.min_iter,
