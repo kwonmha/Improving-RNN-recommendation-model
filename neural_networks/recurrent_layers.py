@@ -32,7 +32,7 @@ class RecurrentLayers(object):
 
 		self.name = ""
 		if self.bidirectional:
-			self.name += "b"+self.layer_type+"_"
+			self.name += "bi"+self.layer_type+"_"
 		elif self.layer_type != "LSTM":
 			self.name += self.layer_type+"_"
 

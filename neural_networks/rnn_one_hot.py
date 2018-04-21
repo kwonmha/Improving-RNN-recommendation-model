@@ -52,6 +52,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 			self.X = tf.placeholder(tf.int32, [None, self.max_length])
 			word_embeddings = tf.get_variable("word_embeddings", [self.n_items, self.recurrent_layer.embedding_size])
 			rnn_input = tf.nn.embedding_lookup(word_embeddings, self.X)
+			# print(rnn_input) # (?, max_length, embedding_size)
 		else:
 			self.X = tf.placeholder(tf.float32, [None, self.max_length, self.n_items])
 			rnn_input = self.X
@@ -121,7 +122,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		elif name=='sigmoid':
 			return tf.nn.sigmoid
 
-	def last_relevant(self, seq, length):
+	def last_relevant(self, seq, length): #https://danijar.com/variable-sequence-lengths-in-tensorflow/
 		batch_size = tf.shape(seq)[0]
 		max_length = int(seq.get_shape()[1])
 		input_size = int(seq.get_shape()[2])
@@ -129,11 +130,11 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		flat = tf.reshape(seq, [-1, input_size])
 		return tf.gather(flat, index)
 
-	def get_length(self, sequence):
-		used = tf.sign(tf.reduce_max(tf.abs(sequence), 2))
-		length = tf.reduce_sum(used, 1)
-		length = tf.cast(length, tf.int32)
-		return length
+	# def get_length(self, sequence):
+	# 	used = tf.sign(tf.reduce_max(tf.abs(sequence), 2))
+	# 	length = tf.reduce_sum(used, 1)
+	# 	length = tf.cast(length, tf.int32)
+	# 	return length
 
 	def kullback_leibler_divergence(self, y_true, y_pred):
 		y_true = tf.maximum(y_true, 10e-8) # prevent 0 into tf.log
@@ -218,7 +219,9 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 	def _load(self, filename):
 		'''Load parameters values from a file
 		'''
-		saver = tf.train.import_meta_graph(filename)
-		saver.restore(self.sess, tf.train.latest_checkpoint(os.path.dirname(filename)))
-		self.sess.run(self.init)
+
+		saver = tf.train.Saver()
+		# saver.restore(self.sess, tf.train.latest_checkpoint(os.path.dirname(filename))) #i don't need checkpoint file now
+		saver.restore(self.sess, filename[:-5]) #remove ".meta"
+		print("load success")
 

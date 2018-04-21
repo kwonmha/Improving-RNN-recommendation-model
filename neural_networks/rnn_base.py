@@ -80,15 +80,20 @@ class RNNBase(object):
 		''' Recieves a sequence of (id, rating), and produces k recommendations (as a list of ids)
 		'''
 
-		# Prepare RNN input
-		X = np.zeros((1, self.max_length, self._input_size()), dtype=self._input_type) # input shape of the RNN
+		seq_by_max_length = sequence[-min(self.max_length, len(sequence)):]  # last max length or all
 
-		seq_by_max_length = sequence[-min(self.max_length, len(sequence)):] #last max length or all
-		X[0, :len(seq_by_max_length), :] = np.array(list(map(lambda x: self._get_features(x), seq_by_max_length)))
+		# Prepare RNN input
+		if self.framework == 'tf' and self.recurrent_layer.embedding_size > 0:
+			X = np.zeros((1, self.max_length), dtype=np.int32)  # tf embedding requires movie-id sequence, not one-hot
+			X[0, :len(seq_by_max_length)] = np.array([item[0] for item in seq_by_max_length])
+		else:
+			X = np.zeros((1, self.max_length, self._input_size()), dtype=self._input_type) # input shape of the RNN
+			X[0, :len(seq_by_max_length), :] = np.array(list(map(lambda x: self._get_features(x), seq_by_max_length)))
 
 		# Run RNN
 		if self.framework == 'tf':
-			output = self.sess.run(self.softmax, feed_dict={self.X: X})
+			length = [len(sequence)]
+			output = self.sess.run(self.softmax, feed_dict={self.X: X, self.length:length})
 		elif self.framework == 'th':
 			if not hasattr(self, 'predict_function'):
 				self._compile_predict_function()

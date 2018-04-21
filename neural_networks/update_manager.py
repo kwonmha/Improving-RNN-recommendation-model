@@ -76,7 +76,7 @@ class Adam(object):
 		self.learning_rate = learning_rate
 		self.beta1 = beta1
 		self.beta2 = beta2
-		self.name = 'Ua_lr'+str(self.learning_rate)+'_b1'+str(self.beta1)+'_b2'+str(self.beta2)
+		self.name = 'Ua_lr'+str(self.learning_rate)+'_b1_'+str(self.beta1)+'_b2_'+str(self.beta2)
 
 	def __call__(self):
 		return tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=self.beta1, beta2=self.beta2)

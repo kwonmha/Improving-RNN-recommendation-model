@@ -18,8 +18,9 @@ def get_file_name(predictor, args):
 
 def find_models(predictor, dataset, args):
 	file = dataset.dirname + "models/" + get_file_name(predictor, args)
+	print("filename : {}".format(file))
 	if args.framework == 'tf':
-		file += ".meta"
+		file += ".meta" #useless for loading file but necessary for finding saved file by code below as it needs file name with file type
 	if args.number_of_batches == "*":
 		file = np.array(glob.glob(file))
 	return file
@@ -136,7 +137,6 @@ def main():
 	args = parse.command_parser(parse.predictor_command_parser, test_command_parser)
 
 	args.training_max_length = args.max_length
-	# args.max_length = int(DATA_HANDLER.max_length/2)
 	if args.number_of_batches == -1:
 		args.number_of_batches = "*"
 
