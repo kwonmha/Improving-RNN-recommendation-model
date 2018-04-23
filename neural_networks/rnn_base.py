@@ -92,7 +92,7 @@ class RNNBase(object):
 
 		# Run RNN
 		if self.framework == 'tf':
-			length = [len(sequence)]
+			length = [min(self.max_length, len(sequence))]
 			output = self.sess.run(self.softmax, feed_dict={self.X: X, self.length:length})
 		elif self.framework == 'th':
 			if not hasattr(self, 'predict_function'):
