@@ -101,6 +101,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		else:
 			self.l_out = lasagne.layers.DenseLayer(self.l_recurrent, num_units=self.n_items, nonlinearity=lasagne.nonlinearities.softmax)
 			network_output = lasagne.layers.get_output(self.l_out)
+			network_output = T.clip(network_output, 10e-8, 1)
 
 			self.cost = (-T.sum(target * T.log(network_output), axis=network_output.ndim - 1)).mean()
 
