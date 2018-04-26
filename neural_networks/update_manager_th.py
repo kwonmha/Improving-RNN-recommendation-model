@@ -3,7 +3,7 @@ import lasagne
 
 def update_manager_command_parser(parser):
 	parser.add_argument('--u_m', dest='update_manager', choices=['sgd', 'adagrad', 'adadelta', 'rmsprop', 'nesterov', 'adam'], help='Update mechanism',
-						default='adam')
+						default='adagrad')
 	parser.add_argument('--u_l', help='Learning rate', default=0.1, type=float)
 	parser.add_argument('--u_rho', help='rho parameter for Adadelta and RMSProp (momentum for Nesterov momentum)', default=0.9, type=float)
 	parser.add_argument('--u_b1', help='Beta 1 parameter for Adam', default=0.9, type=float)

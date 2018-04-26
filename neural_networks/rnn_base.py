@@ -193,17 +193,13 @@ class RNNBase(object):
 		epochs = []
 		metrics = {name: [] for name in self.metrics.keys()}
 		filename = {}
-		bs_sum = 0
-		ts_sum = 0
 
 		try: 
 			while time() - start_time < max_time and iterations < max_iter:
 
 				# Train with a new batch
 				try:
-					bs = time()
 					batch = next(batch_generator)
-					bs_sum += time() - bs
 					# np.set_printoptions(threshold=np.inf)
 
 					if self.framework == 'tf':
@@ -212,14 +208,11 @@ class RNNBase(object):
 							s, cost, _ = self.sess.run([self.summary, self.cost, self.tarining], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
 							self.writer.add_summary(s, iterations)
 						else:
-							cost, _ = self.sess.run([self.cost, self.training], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
-
-						ts_sum += time() - ts
+							cost, _ = self.sess.run([self.cost, self.training, ], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
 
 						# print("================================================")
-						# print(rnn_out[0,:30,:6])
-						# print(last_rnn[0, :6])
-						# print(cost)
+						# print(np.shape(test))
+						# exit()
 
 					elif self.framework.startswith('k'):
 						# self.model.fit(batch[0], batch[2])
@@ -264,9 +257,6 @@ class RNNBase(object):
 						# Print info
 						self._print_progress(iterations, epochs[-1], start_time, train_costs, metrics,
 											 validation_metrics)
-						print(bs_sum, ts_sum)
-						bs_sum = 0
-						ts_sum = 0
 						# exit()
 
 						# Save model
@@ -291,7 +281,6 @@ class RNNBase(object):
 									except OSError:
 										print('Warning : Previous model could not be deleted')
 									del filename[run]
-						# exit()
 
 						if early_stopping is not None:
 							if all([early_stopping(epochs, metrics[m]) for m in validation_metrics]):
