@@ -22,12 +22,12 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		
 		# self.diversity_bias = np.cast[theano.config.floatX](diversity_bias)
 		
-		self.regularization = regularization
-		self.save_log = save_log
-		self.mem_frac = mem_frac
 		self.updater = updater
 		self.recurrent_layer = recurrent_layer
+		self.mem_frac = mem_frac
+		self.save_log = save_log
 		self.log_dir = log_dir
+		self.regularization = regularization
 
 		gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.mem_frac)
 		self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
@@ -60,9 +60,25 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 		self.length = tf.placeholder(tf.int32, [None, ])
 
 		# self.length = self.get_length(rnn_input)
-		self.rnn_out, _state = self.recurrent_layer(rnn_input, self.length, activate_f=activation)
+		self.rnn_out, _state = self.recurrent_layer(rnn_input, self.length, activate_f=activation) #(B, max_length, hidden)
 
-		self.last_rnn = self.last_relevant(self.rnn_out, self.length)
+		if self.attention:
+			att_mat_param = tf.get_variable("att_mat_param", [self.recurrent_layer.layers[-1], self.recurrent_layer.layers[-1]])
+			att_vec_param = tf.get_variable("att_vec_param", [self.recurrent_layer.layers[-1]])
+			# sim_mat = tf.tensordot(self.rnn_out, att_mat_param, axes=1) #(B,T,D)*(D,D)=>(B,T,D), undefined shape : np.shape(sim_mat) = <unknown>
+			sim_mat = tf.einsum('aij,jk->aik', self.rnn_out, att_mat_param) # shape defined : np.shape(sim_mat) = (?, D)
+			# print(np.shape(rnn_attention))
+			sim_mat_tan = tf.tanh(sim_mat)
+			# att_vec = tf.tensordot(sim_mat_tan, tf.transpose(att_vec_param), axes=1) # (B,T,D) * (D, 1)=> (B, T)
+			att_vec = tf.einsum('aij,j->ai', sim_mat_tan, tf.transpose(att_vec_param))
+			att_sm_vec = tf.nn.softmax(att_vec)
+			rnn_attention = tf.einsum('aij,ai->aj', self.rnn_out, att_sm_vec) #(B, T, D) * (B, T) => (B, D)
+		else:
+			self.last_rnn = self.last_relevant(self.rnn_out, self.length)
+
+		self.last_hidden = rnn_attention if self.attention else self.last_rnn
+
+		# self.last_hidden = self.last_rnn
 
 		if self.recurrent_layer.embedding_size and self.tying:
 
@@ -70,15 +86,19 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 				target = self.Y
 			else: #default
 				t_vectors = tf.matmul(self.Y, word_embeddings)  # (16, 3416) * (3416 * 200) -> (16 * 200)
+				# print(np.shape(t_vectors)) #(?, 200)
 				target = tf.matmul(t_vectors, tf.transpose(word_embeddings))  # (16, 200) * (200 * 3416) -> (16 * 3416)
 				target = tf.nn.softmax(target / self.temperature)
 
 			if self.recurrent_layer.no_wt: # not using embedding matrix to get network output
 				w_nwt = tf.get_variable("w_nwt", [self.recurrent_layer.embedding_size, self.n_items])
-				wh = tf.matmul(self.last_rnn, w_nwt)
+				wh = tf.matmul(self.last_hidden, w_nwt)
 
 			else: #default
-				wh = tf.matmul(self.last_rnn, tf.transpose(word_embeddings)) # (16 * emb) * (emb n) -> (16 * n)
+				with tf.variable_scope(tf.get_variable_scope(), reuse=True):
+					output_embeddings = tf.get_variable("word_embeddings", [self.n_items, self.recurrent_layer.embedding_size] )
+					wh = tf.matmul(self.last_hidden, tf.transpose(output_embeddings))  # (16 * emb) * (emb * n) -> (16 * n)
+				# wh = tf.matmul(self.last_hidden, tf.transpose(word_embeddings)) # (16 * emb) * (emb * n) -> (16 * n)
 
 			bias = tf.get_variable("bias", self.n_items)
 			whb = tf.nn.bias_add(wh, bias)  # Wh + b
@@ -95,9 +115,10 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 			self.cost = self.cost1 + self.cost2 * (self.gamma * self.temperature)  # gamma * temperature
 
 		else:
-			self.output = tf.layers.dense(self.last_rnn, self.n_items, activation=None)
-			self.softmax = tf.nn.softmax(self.output)
+			self.output = tf.layers.dense(self.last_hidden, self.n_items, activation=None)
+			# applying attention makes last_hidden have undefined rank. need to reshape
 
+			self.softmax = tf.nn.softmax(self.output)
 			self.xent = -tf.reduce_sum(self.Y * tf.log(self.softmax))
 			self.cost = tf.reduce_mean(self.xent)
 			# tf.summary.histogram("cost", self.cost)
