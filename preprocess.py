@@ -20,11 +20,6 @@ def command_parser():
 	parser.add_argument('--test_size', help='Number of users to put in the test set. If in (0,1) it will be interpreted as the fraction of total number of users. Default: 0.1', default=500, type=float)
 	parser.add_argument('--seed', help='Seed for the random train/val/test split', default=2, type=int)
 	parser.add_argument('--min_time_diff', help='avoid users whose ratingTime is too dense', default=0, type=int)
-	parser.add_argument('--w2v_dim', help='dim of word vector', default=0, type=int)
-	parser.add_argument('--w2v_win', help='window size for training word2vec', default=10, type=int)
-	parser.add_argument('--sg', help='decide w2v architecture, 1 for sg, 0 for cbow, default is 0', default=0, type=int)
-	parser.add_argument('--w2v_iter', help='iteration of w2v training', default=1000, type=int)
-	parser.add_argument('--ow', help='train w2v only', action='store_true')
 
 	args = parser.parse_args()
 	args.dirname = os.path.splitext(args.filename)[0] + "/" # make dir for diff dataset
@@ -242,42 +237,6 @@ def gen_sequences(data, columns, half=False):
 		seq = seq[:1+2*int((len(seq) - 1)/4)]
 	yield seq
 
-def w2v_generator(data):
-	"""data의 모든 user에 대해 모든 item의 리스트를 yiled"""
-	data = data.sort_values('u', kind="mergesort") # Mergesort is stable and keeps the time ordering
-	#print(data)
-	#data = data(epochs=1)
-	seq = []
-	prev_id = -1
-	for u, i in zip(data['u'], data['i']):
-		#print(u, i)
-		if u != prev_id:
-			if len(seq) >= 1:
-				# print(prev_id)
-				# print(seq)
-				# exit()
-				yield seq
-			prev_id = u
-			seq = [str(i)]
-		else:
-			seq.extend([str(i)])
-	#print(type(i))
-
-	yield seq
-
-def save_word2vec(data, args):
-	print("save word2vec model")
-	w2v = word2vec.Word2Vec(iter=args.w2v_iter, min_count=1, size=args.w2v_dim, window=args.w2v_win, sg=args.sg)
-	#print(data['i'].nunique())
-	w2v.build_vocab([map(str, range(data['i'].nunique()))])
-	w2v.train(w2v_generator(data))
-	import w2v_test
-	w2v_test.showTitles(w2v.similar_by_vector(w2v['127']))
-	answer = raw_input('Save model ? [y/n]')
-	if answer != "y":
-		sys.exit(0)
-	w2v.save(args.dirname + "w2v_d" + str(args.w2v_dim) + "_w" + str(args.w2v_win) + "_i" + str(args.w2v_iter) + "_sg" + str(args.sg))
-
 def make_sequence_format(train_set, val_set, test_set, dirname, columns):
 	"""Convert the train/validation/test sets in the sequence format and save them.
 	Also create the extended training sequences, which countains the first half of the sequences of users in the validation and test sets.
@@ -306,7 +265,6 @@ def make_sequence_format(train_set, val_set, test_set, dirname, columns):
 			f.write(' '.join(map(str, s)) + "\n")
 		for s in gen_sequences(test_set, columns, half=True):
 			f.write(' '.join(map(str, s)) + "\n")
-
 
 def save_data_stats(data, train_set, val_set, test_set, dirname):
 	print('Save stats...')
@@ -410,17 +368,13 @@ def main():
 	#data = remove_rare_elements(data, args.min_user_activity, args.min_item_pop, args.min_time_diff)
 
 	data = save_index_mapping(data, args.dirname)
-	if args.w2v_dim:
-		save_word2vec(data, args)
-		print("w2v training done")
-	if not args.ow:
-		train_set, val_set, test_set = split_data(data, args.val_size, args.test_size, args.dirname, args.min_time_diff)
-		make_sequence_format(train_set, val_set, test_set, args.dirname, args.columns)
-		save_data_stats(data, train_set, val_set, test_set, args.dirname)
-		make_readme(args.dirname, val_set, test_set, args.min_time_diff)
+	train_set, val_set, test_set = split_data(data, args.val_size, args.test_size, args.dirname, args.min_time_diff)
+	make_sequence_format(train_set, val_set, test_set, args.dirname, args.columns)
+	save_data_stats(data, train_set, val_set, test_set, args.dirname)
+	make_readme(args.dirname, val_set, test_set, args.min_time_diff)
 
-		print('Data ready!')
-		print(data.head(10))
+	print('Data ready!')
+	print(data.head(10))
 
 if __name__ == '__main__':
 	main()
