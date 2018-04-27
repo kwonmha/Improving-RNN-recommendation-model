@@ -83,9 +83,6 @@ def get_predictor(args):
 	sequence_noise = get_sequence_noise(args)
 	target_selection = get_target_selection(args)
 
-	if args.framework.startswith('k') and args.tying :
-		raise ValueError('tying weight is not available in keras now ')
-
 	if args.framework == 'th':
 		from neural_networks.rnn_onehot_theano import RNNOneHotTH
 
