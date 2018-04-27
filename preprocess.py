@@ -209,7 +209,7 @@ def split_data(data, nb_val_users, nb_test_users, dirname, save_time):
 
 	return train_set, val_set, test_set
 
-def gen_sequences(data, half=False):
+def gen_sequences(data, columns, half=False):
 	"""Generates sequences of user actions from data.
 	each sequence has the format [user_id, first_item_id, first_item_rating, first_item_rating_time, 2nd_item_id, 2nd_item_rating, 2nd_item_rating_time...].
 	If half is True, cut the sequences to half their true length (useful to produce the extended training set).
@@ -218,15 +218,26 @@ def gen_sequences(data, half=False):
 	data = data.sort_values('u', kind="mergesort") # Mergesort is stable and keeps the time ordering
 	seq = []
 	prev_id = -1
-	for u, i, r, t in zip(data['u'], data['i'], data['r'], data['t']):
-		if u != prev_id:
-			if len(seq) > 3:
-				if half:
-					seq = seq[:1+2*int((len(seq) - 1)/4)]
-				yield seq
-			prev_id = u
-			seq = [u]
-		seq.extend([i, r, t])
+	if 't' in columns:
+		for u, i, r, t in zip(data['u'], data['i'], data['r'], data['t']):
+			if u != prev_id:
+				if len(seq) > 3:
+					if half:
+						seq = seq[:1+2*int((len(seq) - 1)/4)]
+					yield seq
+				prev_id = u
+				seq = [u]
+			seq.extend([i, r, t])
+	else:
+		for u, i, r in zip(data['u'], data['i'], data['r']):
+			if u != prev_id:
+				if len(seq) > 3:
+					if half:
+						seq = seq[:1+2*int((len(seq) - 1)/4)]
+					yield seq
+				prev_id = u
+				seq = [u]
+			seq.extend([i, r])
 	if half:
 		seq = seq[:1+2*int((len(seq) - 1)/4)]
 	yield seq
@@ -267,57 +278,48 @@ def save_word2vec(data, args):
 		sys.exit(0)
 	w2v.save(args.dirname + "w2v_d" + str(args.w2v_dim) + "_w" + str(args.w2v_win) + "_i" + str(args.w2v_iter) + "_sg" + str(args.sg))
 
-def make_sequence_format(train_set, val_set, test_set, dirname):
+def make_sequence_format(train_set, val_set, test_set, dirname, columns):
 	"""Convert the train/validation/test sets in the sequence format and save them.
 	Also create the extended training sequences, which countains the first half of the sequences of users in the validation and test sets.
 	"""
 
 	print('Save the training set in the sequences format...')
 	with open(dirname+"data/train_set_sequences", "w") as f:
-		for s in gen_sequences(train_set):
+		for s in gen_sequences(train_set, columns):
 			f.write(' '.join(map(str, s)) + "\n")
 
 	print('Save the validation set in the sequences format...')
 	with open(dirname+"data/val_set_sequences", "w") as f:
-		for s in gen_sequences(val_set):
+		for s in gen_sequences(val_set, columns):
 			f.write(' '.join(map(str, s)) + "\n")
 
 	print('Save the test set in the sequences format...')
 	with open(dirname+"data/test_set_sequences", "w") as f:
-		for s in gen_sequences(test_set):
+		for s in gen_sequences(test_set, columns):
 			f.write(' '.join(map(str, s)) + "\n")
 
 	# sequences+ contains all the sequences of train_set_sequences plus half the sequences of val and test sets
 	print('Save the extended training set in the sequences format...')
 	copyfile(dirname+"data/train_set_sequences", dirname+"data/train_set_sequences+")
 	with open(dirname+"data/train_set_sequences+", "a") as f:
-		for s in gen_sequences(val_set, half=True):
+		for s in gen_sequences(val_set, columns, half=True):
 			f.write(' '.join(map(str, s)) + "\n")
-		for s in gen_sequences(test_set, half=True):
+		for s in gen_sequences(test_set, columns, half=True):
 			f.write(' '.join(map(str, s)) + "\n")
 
 
 def save_data_stats(data, train_set, val_set, test_set, dirname):
 	print('Save stats...')
-	# pd.set_option('display.max_rows', len(data))
-	#np.set_printoptions(threshold=np.inf)
-	#print(data['u'].unique())
 
 	def _get_stats(df):
-		#print(type(df.groupby('u').size())) #Series
-		#print(type(df.groupby('u')['t_s'].max() - df.groupby('u')['t_s'].min())) # Series of timedelta64[ns]
-		#print(pd.to_datetime(df.groupby('u')['t_s'].max() - df.groupby('u')['t_s'].min(), unit='s') - pd.to_datetime(0, unit='s'))  # Series of timedelta64[ns]
-		#df['i/t'] = df.groupby('u').size() * 60 * 60 / (df.groupby('u')['t_s'].max() - df.groupby('u')['t_s'].min())
-		#df['t/i'] = (df.groupby('u')['t'].max() - df.groupby('u')['t'].min()) / df.groupby('u').size()
-		#print(min(df['t']))
-		return "\t".join(map(str, [df['u'].nunique(), df['i'].nunique(), len(df.index), df.groupby('u').size().max(), min(df['t']).strftime("%Y-%m-%d"), max(df['t']).strftime("%Y-%m-%d")]))
+		return "\t".join(map(str, [df['u'].nunique(), df['i'].nunique(), len(df.index), df.groupby('u').size().max()]))
 
-	def _get_info(df):
-		return "\n".join(map(str, zip(df.sort_values('u')['u'].unique(), df.groupby('u')['t'].max() - df.groupby('u')['t'].min(), df.groupby('u').size())))
-
-	with open(dirname+"data/report", "w") as f:
-		f.write("userId\t\tmax_time - min_time\t\tratedItems\n")
-		f.write(_get_info(data) + "\n")
+	# def _get_info(df):
+	# 	return "\n".join(map(str, zip(df.sort_values('u')['u'].unique(), df.groupby('u')['t'].max() - df.groupby('u')['t'].min(), df.groupby('u').size())))
+	#
+	# with open(dirname+"data/report", "w") as f:
+	# 	f.write("userId\t\tmax_time - min_time\t\tratedItems\n")
+	# 	f.write(_get_info(data) + "\n")
 
 	with open(dirname+"data/stats", "w") as f:
 		f.write("set\tn_users\tn_items\tn_interactions\tlongest_sequence\tearliest_time\tlatest_time\n")
@@ -406,29 +408,19 @@ def main():
 	create_dirs(args.dirname)
 	data = load_data(args.filename, args.columns, args.sep)
 	#data = remove_rare_elements(data, args.min_user_activity, args.min_item_pop, args.min_time_diff)
-		#check seq length info
-		# print(max(data.groupby('u').size()))
-		# print(min(data.groupby('u').size()))
-		# print(np.mean(np.array(data.groupby('u').size())))
-		# exit()
+
 	data = save_index_mapping(data, args.dirname)
 	if args.w2v_dim:
 		save_word2vec(data, args)
 		print("w2v training done")
 	if not args.ow:
 		train_set, val_set, test_set = split_data(data, args.val_size, args.test_size, args.dirname, args.min_time_diff)
-		make_sequence_format(train_set, val_set, test_set, args.dirname)
+		make_sequence_format(train_set, val_set, test_set, args.dirname, args.columns)
 		save_data_stats(data, train_set, val_set, test_set, args.dirname)
 		make_readme(args.dirname, val_set, test_set, args.min_time_diff)
 
 		print('Data ready!')
-
 		print(data.head(10))
-		# print(data.groupby('u'))
-		# print(data.iloc[2, 3])
-		# print(data.iloc[3, 3] - data.iloc[1, 3])
-		# print(type(data.iloc[3, 3] - data.iloc[1, 3]))
-		# print((data.iloc[3, 3] - data.iloc[1, 3]) < datetime.timedelta(minutes=1))
 
 if __name__ == '__main__':
 	main()
