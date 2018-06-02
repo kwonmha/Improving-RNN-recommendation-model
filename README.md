@@ -15,7 +15,6 @@ For reproducibility, you can download the same preprocessed data sequence from h
 
 ## Experimental results (Performed on Tensorflow)
 | Models                      | sps                 | Recall               |
-|                             | a                   | b                    |
 |-----------------------------|:-------------------:|:--------------------:|
 | LSTM_vanilla(dim:50)        | 31                  | 6.2                  |
 | LSTM_weight_tying(dim:50)   | 29.2                | 6.0                  |
