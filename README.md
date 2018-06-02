@@ -26,16 +26,6 @@ For reproducibility, you can download the same preprocessed data sequence from h
 **Weight tying might not that effective to improve sps but it clearly marks higher recall.
 And its effectiveness starts to come out when the dimension of the hidden state is higher than 50.**
 
-|              |          Grouping           |
-|First Header  | Second Header | Third Header |
-| ------------ | :-----------: | -----------: |
-|Content       |          *Long Cell*        |
-|Content       |   **Cell**    |         Cell |
-
-|New section   |     More      |         Data |
-|And more      | With an escaped '\|'         |  
-[Prototype table]
-
 ## Requirements
 
 - Python 3
