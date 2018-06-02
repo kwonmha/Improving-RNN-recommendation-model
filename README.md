@@ -7,6 +7,12 @@ This is only available in tensorflow now.
 
 For reproducibility, you can download the same preprocessed data sequence from http://iridia.ulb.ac.be/~rdevooght/rnn_cf_data.zip. 
 
+## Experimental results
+| Models                 | sps                 | Recall               |
+|------------------------|:-------------------:|:--------------------:|
+| LSTM_baseline          | 73%                 | 74.28                |
+| LSTM_weight_tying      | 65.95%              | 70.14                |
+
 ## Requirements
 
 - Python 3
@@ -40,14 +46,9 @@ Use `-fr` option to select deeplearning framework. **'tf'** for tensorflow, **'k
 
 Example : `python train.py -fr tf`
 
-`--act` Activation function for rnn.
 `--mem_frac` sets the fraction of memory to use for tensorflow or keras-tensorflow backend.
 `--save_log` You can set whether to save training logs when using tensorflow.
 `--log_dir` sets the directory to save training logs when using tensorflow.
-`-iter` In default(when this option is False) test.py make one input sequence per each users in test data for testing model dividing movie history into half. 
-If a user watched n movies, use m_1, m_2 ... m_n/2 as input and the others as criteria.
-If this is set True, test.py generates n input-criteria pairs like [m_1 / m_2 .. m_n], [m_1, m_2 / m_3 ... m_n] ... [m_1, m_2 .. m_n-1 / m_n].
-So you can evaluate the performance of model more precisly. Of course, this takes much more time.
 
 **Explanation below are copied from original github and simplified**
 
@@ -105,6 +106,11 @@ All the metrics are computed "@k", with k=10 by default. k can be changed using 
 When the `--save` option is used, the results are saved in a file in "path/to/dataset/results/".
 the results of each model form a line of the file, and each line contains the number of epochs followed by the metrics specified by `--metrics`.
 
+`-iter` In default(when this option is False) test.py make one input sequence per each users in test data for testing model dividing movie history into half. 
+If a user watched n movies, use m_1, m_2 ... m_n/2 as input and the others as criteria.
+If this is set True, test.py generates n input-criteria pairs like [m_1 / m_2 .. m_n], [m_1, m_2 / m_3 ... m_n] ... [m_1, m_2 .. m_n-1 / m_n].
+So you can evaluate the performance of model more precisly. Of course, this takes much more time.
+
 
 ### Recurrent Neural Networks parameters
 
@@ -119,6 +125,7 @@ Option | Desciption
 `--r_l size_of_layer1-size_of_layer2-etc.` | Size and number of layers. for example, `--r_l 100-50-50` creates a layer with 50 hidden neurons on top of another layer with 50 hidden neurons on top of a layer with 100 hidden neurons. Default: 32.
 `--r_bi` | Use bidirectional layers.
 `--r_emb size` | Adds an embedding layer before the recurrent layer. By default no embedding layer is used, but it is adviced to use one (e.g. `--r_emb 100`).
+`--act` | Activation function for rnn.
 
 other parameters for tying matrix are not added yet.
 
