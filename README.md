@@ -6,12 +6,22 @@ I applied "[weight tying technique](https://pdfs.semanticscholar.org/fb26/4cfa73
 This is only available in tensorflow now.
 
 For reproducibility, you can download the same preprocessed data sequence from http://iridia.ulb.ac.be/~rdevooght/rnn_cf_data.zip. 
+<p align="center">
+	<img width="700" height="400" src="https://user-images.githubusercontent.com/8953934/40874985-dc9ae5fe-66b2-11e8-8d50-3339bbfc5938.png">
+</p>
 
 ## Experimental results
-| Models                 | sps                 | Recall               |
-|------------------------|:-------------------:|:--------------------:|
-| LSTM_baseline          | 73%                 | 74.28                |
-| LSTM_weight_tying      | 65.95%              | 70.14                |
+| Models                      | sps                 | Recall               |
+|-----------------------------|:-------------------:|:--------------------:|
+| LSTM_vanilla(dim:50)        | 31                  | 6.2                  |
+| LSTM_weight_tying(dim:50)   | 29.2                | 6.0                  |
+| LSTM_vanilla(dim:100)       | 29.2                | 5.2                  |
+| LSTM_weight_tying(dim:100)  | 33.8                | 6.6                  |
+| LSTM_vanilla(dim:200)       | 28.6                | 5.6                  |
+| LSTM_weight_tying(dim:200)  | 31                  | 6.8                  |
+
+**Weight tying might not that effective to improve sps but it clearly marks higher recall.
+And its effectiveness starts to come out when the dimension of the hidden state is higher than 50.**
 
 ## Requirements
 
@@ -50,7 +60,7 @@ Example : `python train.py -fr tf`
 `--save_log` You can set whether to save training logs when using tensorflow.
 `--log_dir` sets the directory to save training logs when using tensorflow.
 
-**Explanation below are copied from original github and simplified**
+**Explanation below are almost copied from original github and simplified**
 
 ### train.py
 
