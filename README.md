@@ -10,7 +10,7 @@ For reproducibility, you can download the same preprocessed data sequence from h
 	<img width="1000" height="400" src="https://user-images.githubusercontent.com/8953934/40874985-dc9ae5fe-66b2-11e8-8d50-3339bbfc5938.png">
 </p>
 <p align="center">
-	<img width="1000" height="400" src="https://user-images.githubusercontent.com/8953934/40876274-29aa21b0-66b4-11e8-8552-099d4799250e.JPG">
+	<img width="1000" height="400" src="https://user-images.githubusercontent.com/8953934/40876662-8bb4478c-66b4-11e8-9e00-c03a922d5f50.JPG">
 </p>
 
 ## Experimental results (Performed on Tensorflow)
