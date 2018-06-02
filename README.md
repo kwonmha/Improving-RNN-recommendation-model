@@ -10,7 +10,7 @@ For reproducibility, you can download the same preprocessed data sequence from h
 	<img width="700" height="400" src="https://user-images.githubusercontent.com/8953934/40874985-dc9ae5fe-66b2-11e8-8d50-3339bbfc5938.png">
 </p>
 
-## Experimental results
+## Experimental results (Performed on Tensorflow)
 | Models                      | sps                 | Recall               |
 |-----------------------------|:-------------------:|:--------------------:|
 | LSTM_vanilla(dim:50)        | 31                  | 6.2                  |
