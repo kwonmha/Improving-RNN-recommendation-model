@@ -12,6 +12,7 @@ For reproducibility, you can download the same preprocessed data sequence from h
 <p align="center">
 	<img width="1000" height="400" src="https://user-images.githubusercontent.com/8953934/40876274-29aa21b0-66b4-11e8-8552-099d4799250e.JPG">
 </p>
+
 ## Experimental results (Performed on Tensorflow)
 | Models                      | sps                 | Recall               |
 |-----------------------------|:-------------------:|:--------------------:|
