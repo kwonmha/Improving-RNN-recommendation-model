@@ -1,4 +1,5 @@
 .idea/
 logs/
 data/
+ml1m.dat
 *.pyc
