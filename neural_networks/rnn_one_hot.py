@@ -35,7 +35,6 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 
 		self.name = "RNN with categorical cross entropy"
 
-
 	def _get_model_filename(self, epochs):
 		"""Return the name of the file to save the current model
 		"""

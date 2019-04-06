@@ -6,6 +6,7 @@ import helpers.command_parser as parse
 import helpers.early_stopping as EsParse
 from helpers.data_handling import DataHandler
 
+
 def training_command_parser(parser):
 	parser.add_argument('--tshuffle', help='Shuffle sequences during training.', action='store_true')
 	parser.add_argument('--extended_set', help='Use extended training set (contains first half of validation and test set).', action='store_true')
@@ -20,11 +21,13 @@ def training_command_parser(parser):
 	parser.add_argument('--max_time', help='Max training time in seconds', default=np.inf, type=float)
 	parser.add_argument('--min_iter', help='Min number of iterations before showing progress', default=50000, type=float) # 10 epoch for ml1m
 
+
 def num(s):
 	try:
 		return int(s)
 	except ValueError:
 		return float(s)
+
 
 def main():
 
@@ -53,6 +56,7 @@ def main():
 		early_stopping=EsParse.get_early_stopper(args),
 		load_last_model=args.load_last_model,
 		validation_metrics=args.metrics.split(','))
+
 
 if __name__ == '__main__':
 	main()

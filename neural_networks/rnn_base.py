@@ -13,6 +13,7 @@ import numpy as np
 from .sequence_noise import SequenceNoise
 from .target_selection import SelectTargets
 
+
 class RNNBase(object):
 	"""Base for RNN object.
 	"""
@@ -200,19 +201,16 @@ class RNNBase(object):
 				# Train with a new batch
 				try:
 					batch = next(batch_generator)
-					# np.set_printoptions(threshold=np.inf)
 
 					if self.framework == 'tf':
-						ts = time()
 						if self.save_log:
-							s, cost, _ = self.sess.run([self.summary, self.cost, self.tarining], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
+							s, cost, _ = self.sess.run([self.summary, self.cost, self.training], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
 							self.writer.add_summary(s, iterations)
 						else:
 							cost, _ = self.sess.run([self.cost, self.training, ], feed_dict={self.X: batch[0], self.Y: batch[1], self.length: batch[2]})
 
 						# print("================================================")
 						# print(np.shape(test))
-						# exit()
 
 					elif self.framework.startswith('k'):
 						# self.model.fit(batch[0], batch[2])
@@ -222,13 +220,9 @@ class RNNBase(object):
 						# print(batch[1])
 
 					else:
-						ts = time()
 						cost = self.train_function(*batch)
-						ts_sum += time() - ts
 						# print(output)
 						# print(cost)
-
-					# exit()
 
 					if np.isnan(cost):
 						raise ValueError("Cost is NaN")
@@ -257,7 +251,6 @@ class RNNBase(object):
 						# Print info
 						self._print_progress(iterations, epochs[-1], start_time, train_costs, metrics,
 											 validation_metrics)
-						# exit()
 
 						# Save model
 						run_nb = len(metrics[list(self.metrics.keys())[0]]) - 1
@@ -295,11 +288,11 @@ class RNNBase(object):
 			np.array(metrics[validation_metrics[0]]) * self.metrics[validation_metrics[0]]['direction'])
 		return ({m: metrics[m][best_run] for m in self.metrics.keys()}, time() - start_time, filename[best_run])
 
+
 	def _compute_validation_metrics(self, metrics):
 		"""
 		add value to lists in metrics dictionary
 		"""
-
 
 	def _gen_mini_batch(self, sequence_generator, test=False):
 		''' Takes a sequence generator and produce a mini batch generator.
@@ -355,7 +348,6 @@ class RNNBase(object):
 				yield self._prepare_input(sequences), [i[0] for i in sequence[seq_lengths[0]:]]
 			else:
 				yield self._prepare_input(sequences)
-
 
 	def _print_progress(self, iterations, epochs, start_time, train_costs, metrics, validation_metrics):
 		'''Print learning progress in terminal
@@ -437,11 +429,9 @@ class RNNBase(object):
 
 		return last_batch
 
-
 	def _load(self, filename):
 		'''Load parameters values from a file
 		'''
-
 
 	def _input_size(self):
 		''' Returns the number of input neurons
@@ -452,8 +442,6 @@ class RNNBase(object):
 		'''Change a tuple (item_id, rating) into a list of features to feed into the RNN
 		features have the following structure: [one_hot_encoding, personal_rating on a scale of ten, average_rating on a scale of ten, popularity on a log scale of ten]
 		'''
-
-		#item = (item_id, rating)
 
 		one_hot_encoding = np.zeros(self.n_items)
 		one_hot_encoding[item[0]] = 1
