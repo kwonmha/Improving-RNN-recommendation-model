@@ -129,7 +129,7 @@ A diversity_bias of 0 produces the normal behavior, with no bias.
 
 		if self.save_log:
 			self.summary = tf.summary.merge_all()
-			self.writer = tf.summary.FileWriter('/' + self.log_dir, self.sess.graph)
+			self.writer = tf.summary.FileWriter('./' + self.log_dir, self.sess.graph)
 			self.writer.add_graph(self.sess.graph)
 
 	def get_activation(self, name):
